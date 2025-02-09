@@ -75,73 +75,90 @@
 
 package com.example;
 
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.json.JSONObject;
 import org.json.JSONArray;
 import java.util.ArrayList;
 import java.util.List;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api")
 public class AppController {
-
-    private static final String BASE_URL = "https://collectionapi.metmuseum.org/public/collection/v1";
+    private static final String WIKI_API_URL = "https://en.wikipedia.org/w/api.php";
+    private static final String WIKI_MEDIA_API = "https://commons.wikimedia.org/w/api.php";
 
     @GetMapping("/artwork")
     public ResponseEntity<String> getArtworkInfo(@RequestParam String name) {
         RestTemplate restTemplate = new RestTemplate();
+        List<JSONObject> artworks = new ArrayList<>();
 
-        String searchURL = BASE_URL + "/search?q=" + name;
-        String searchResponse = restTemplate.getForObject(searchURL, String.class);
+        try {
+            String searchQuery = URLEncoder.encode(name + " artwork painting", StandardCharsets.UTF_8);
+            String searchUrl = WIKI_API_URL + "?action=query&format=json&list=search&srsearch=" + searchQuery + "&srlimit=9";
+            
+            String searchResponse = restTemplate.getForObject(searchUrl, String.class);
+            JSONObject searchData = new JSONObject(searchResponse);
+            JSONArray searchResults = searchData.getJSONObject("query").getJSONArray("search");
 
-        if (searchResponse == null) {
-            return ResponseEntity.badRequest().body(new JSONObject().put("error", "error searching artwork from MET!").toString());
-        }
+            for (int i = 0; i < searchResults.length() && i < 9; i++) {
+                JSONObject result = searchResults.getJSONObject(i);
+                String title = result.getString("title");
+                String pageId = String.valueOf(result.getInt("pageid"));
 
-        JSONObject searchData = new JSONObject(searchResponse);
-        System.out.println("Search Response: " + searchData.toString(4));
+                String detailUrl = WIKI_API_URL + "?action=query&format=json&prop=extracts|pageimages&exintro=1&piprop=original&titles=" + URLEncoder.encode(title, StandardCharsets.UTF_8);
+                String detailResponse = restTemplate.getForObject(detailUrl, String.class);
+                JSONObject pages = new JSONObject(detailResponse).getJSONObject("query").getJSONObject("pages");
+                JSONObject pageData = pages.getJSONObject(pages.keys().next());
 
-        if (!searchData.has("objectIDs") || searchData.getJSONArray("objectIDs").isEmpty()) {
-            return ResponseEntity.ok(new JSONObject().put("error", "no artwork matched!").toString());
-        }
-
-        JSONArray objectIDs = searchData.getJSONArray("objectIDs");
-        List<JSONObject> validArtworks = new ArrayList<>();
-        int count = 0;
-
-        for (int i = 0; i < objectIDs.length() && count < 9; i++) {
-            try {
-                int objectId = objectIDs.getInt(i);
-                String artworkURL = BASE_URL + "/objects/" + objectId;
-                String artworkResponse = restTemplate.getForObject(artworkURL, String.class);
+                JSONObject artwork = new JSONObject();
+                artwork.put("title", title);
+                artwork.put("artistDisplayName", extractArtist(pageData.optString("extract", "")));
+                artwork.put("objectDate", extractDate(pageData.optString("extract", "")));
+                artwork.put("medium", "Artwork");
+                artwork.put("objectURL", "https://en.wikipedia.org/?curid=" + pageId);
                 
-                if (artworkResponse != null) {
-                    JSONObject artwork = new JSONObject(artworkResponse);
-                    validArtworks.add(artwork);
-                    count++;
-                    
-                    System.out.println("\n----- Artwork " + count + " Information -----");
-                    System.out.println("Title: " + artwork.optString("title", "Unknown"));
-                    System.out.println("Artist: " + artwork.optString("artistDisplayName", "Unknown"));
-                    System.out.println("Date: " + artwork.optString("objectDate", "Unknown"));
+                if (pageData.has("original")) {
+                    artwork.put("primaryImage", pageData.getJSONObject("original").getString("source"));
                 }
-            } catch (Exception e) {
-                System.out.println("Error fetching artwork ID: " + objectIDs.getInt(i));
+
+                artworks.add(artwork);
+            }
+
+            if (artworks.isEmpty()) {
+                return ResponseEntity.ok(new JSONObject().put("error", "No artworks found!").toString());
+            }
+
+            return ResponseEntity.ok(new JSONArray(artworks).toString());
+
+        } catch (Exception e) {
+            System.err.println("Error: " + e.getMessage());
+            return ResponseEntity.badRequest().body(new JSONObject().put("error", "Error searching artwork!").toString());
+        }
+    }
+
+    private String extractArtist(String extract) {
+        String[] keywords = {"painted by", "created by", "by", "artist"};
+        String lowercaseExtract = extract.toLowerCase();
+        
+        for (String keyword : keywords) {
+            int index = lowercaseExtract.indexOf(keyword);
+            if (index != -1) {
+                int end = lowercaseExtract.indexOf(".", index);
+                if (end != -1) {
+                    return extract.substring(index + keyword.length(), end).trim();
+                }
             }
         }
+        return "Unknown";
+    }
 
-        if (validArtworks.isEmpty()) {
-            return ResponseEntity.ok(new JSONObject().put("error", "No valid artworks found!").toString());
-        }
-
-        JSONArray artworksArray = new JSONArray(validArtworks);
-        return ResponseEntity.ok(artworksArray.toString());
+    private String extractDate(String extract) {
+        String[] years = extract.replaceAll("[^0-9]", " ").trim().split("\\s+");
+        return years.length > 0 ? years[0] : "Unknown";
     }
 }

@@ -139,7 +139,7 @@ function App() {
             <p><strong>Artist:</strong> {artwork.artistDisplayName || "Unknown"}</p>
             <p><strong>Date:</strong> {artwork.objectDate || "Unknown"}</p>
             <p><strong>Medium:</strong> {artwork.medium || "Unknown"}</p>
-            <p><a href={artwork.objectURL} target="_blank" rel="noopener noreferrer">View on Met Museum</a></p>
+            <p><a href={artwork.objectURL} target="_blank" rel="noopener noreferrer">View on Wikipedia</a></p>
             {artwork.primaryImage ? (
               <img 
                 src={artwork.primaryImage} 
