@@ -1,2 +1,4 @@
 com\example\App.class
 com\example\AppController.class
+com\example\WikiArtistParser$Event.class
+com\example\WikiArtistParser.class
