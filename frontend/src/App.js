@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import "./App.css";
 
 function App() {
   const [artistName, setArtistName] = useState("");
+  const [scope, setScope] = useState("political-events");
   const [artistUrl, setArtistUrl] = useState("");
   const [error, setError] = useState("");
 
@@ -12,7 +14,9 @@ function App() {
     }
 
     try {
-      const response = await fetch(`http://localhost:8080/api/artwork?name=${encodeURIComponent(artistName)}`);
+      const response = await fetch(
+        `http://localhost:8080/api/artwork?name=${encodeURIComponent(artistName)}&scope=${scope}`
+      );
       if (!response.ok) throw new Error("Error searching artist");
 
       const data = await response.json();
@@ -31,36 +35,48 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col items-center p-8 max-w-2xl mx-auto">
-      <h1 className="text-3xl font-bold mb-8">Artist Search</h1>
+    <div className="app-container">
+      <h1>Artist Timeline Explorer</h1>
       
-      <div className="w-full flex gap-4 mb-6">
-        <input
-          type="text"
-          value={artistName}
-          onChange={(e) => setArtistName(e.target.value)}
-          placeholder="Enter artist name"
-          className="flex-1 p-2 border rounded"
-        />
-        <button 
-          onClick={searchArtist}
-          className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-        >
-          Search
-        </button>
+      <div className="search-form">
+        <div className="form-group">
+          <label>Artist Name</label>
+          <input
+            type="text"
+            value={artistName}
+            onChange={(e) => setArtistName(e.target.value)}
+            placeholder="Enter artist name"
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Search Scope</label>
+          <select
+            value={scope}
+            onChange={(e) => setScope(e.target.value)}
+          >
+            <option value="political-events">Political Events</option>
+            <option value="art-movements">Art Movements</option>
+            <option value="personal-events">Personal Events</option>
+            <option value="artist-network">Artist Network</option>
+          </select>
+        </div>
+
+        <button onClick={searchArtist}>Search</button>
       </div>
 
-      {error && <p className="text-red-500 mb-4">{error}</p>}
+      {error && <div className="error">{error}</div>}
       
       {artistUrl && (
-        <a 
-          href={artistUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="text-blue-500 hover:underline"
-        >
-          View Artist on Wikipedia
-        </a>
+        <div className="result">
+          <a 
+            href={artistUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            View Artist Details on Wikipedia
+          </a>
+        </div>
       )}
     </div>
   );
