@@ -109,9 +109,8 @@ public class AppController {
     }
 
     private String buildArtMovementsQuery(int birthYear, int deathYear) {
-        int year = 1886;
-        return String.format("\"art movement\" %d..%d", birthYear, deathYear);
-        /*
+        //return String.format("\"art movement\" %d..%d", birthYear, deathYear);
+        
         return String.format(
             
             "(\"art movement\" OR \"artistic movement\" OR modernism OR " +
@@ -120,7 +119,7 @@ public class AppController {
             "%d..%d",
             birthYear, deathYear
 
-        );*/
+        );
 
     }
 
@@ -301,6 +300,7 @@ public class AppController {
                lowerTitle.contains("abstract art") ||
                lowerTitle.contains("renaissance") ||
                lowerTitle.contains("realism") ||
-               lowerTitle.contains("pop");
+               lowerTitle.contains("pop") ||
+               lowerTitle.contains("ism");
     }
 }
