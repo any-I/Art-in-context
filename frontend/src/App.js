@@ -38,9 +38,18 @@ function App() {
     }
   };
 
+  const getListTitle = () => {
+    switch(scope) {
+      case 'political-events': return 'Political Events';
+      case 'art-movements': return 'Art Movements';
+      case 'artist-network': return 'Artist Network';
+      default: return 'Events';
+    }
+  };
+
   return (
     <div className="app-container">
-      <h1>Art Context Engine</h1>
+      <h1>Artist Timeline Explorer</h1>
       
       <div className="search-form">
         <div className="form-group">
@@ -61,7 +70,6 @@ function App() {
           >
             <option value="political-events">Political Events</option>
             <option value="art-movements">Art Movements</option>
-            <option value="personal-events">Personal Events</option>
             <option value="artist-network">Artist Network</option>
           </select>
         </div>
@@ -84,7 +92,7 @@ function App() {
           
           {events.length > 0 && (
             <div className="events-list">
-              <h2>[WIP] Scope: Political Events</h2>
+              <h3>Related {getListTitle()}</h3>
               {events.map((event, index) => (
                 <div key={index} className="event-item">
                   <h4>

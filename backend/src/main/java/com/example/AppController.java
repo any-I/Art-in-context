@@ -24,13 +24,11 @@ public class AppController {
         RestTemplate restTemplate = new RestTemplate();
         
         try {
-            // Get artist details
             String artistPageId = getArtistPageId(name, restTemplate);
             if (artistPageId == null) {
                 return ResponseEntity.ok(new JSONObject().put("error", "Artist not found").toString());
             }
 
-            // Get artist's birth/death years
             int[] lifespan = getArtistLifespan(artistPageId, restTemplate);
             if (lifespan == null) {
                 return ResponseEntity.ok(new JSONObject().put("error", "Could not determine artist's lifespan").toString());
@@ -43,6 +41,13 @@ public class AppController {
                 String politicalEventsQuery = buildPoliticalEventsQuery(lifespan[0], lifespan[1]);
                 JSONArray events = searchPoliticalEvents(politicalEventsQuery, restTemplate);
                 result.put("events", events);
+            } else if (scope.equals("art-movements")) {
+                String artMovementsQuery = buildArtMovementsQuery(lifespan[0], lifespan[1]);
+                JSONArray movements = searchArtMovements(artMovementsQuery, restTemplate);
+                result.put("events", movements);
+            } else if (scope.equals("artist-network")) {
+                JSONArray network = searchArtistNetwork(artistPageId, restTemplate);
+                result.put("events", network);
             }
 
             return ResponseEntity.ok(result.toString());
@@ -101,6 +106,16 @@ public class AppController {
         );
     }
 
+    private String buildArtMovementsQuery(int birthYear, int deathYear) {
+        return String.format(
+            "(\"art movement\" OR \"artistic movement\" OR modernism OR " +
+            "expressionism OR surrealism OR cubism OR futurism OR " +
+            "dadaism OR impressionism OR \"abstract art\") " +
+            "%d..%d",
+            birthYear, deathYear
+        );
+    }
+
     private JSONArray searchPoliticalEvents(String query, RestTemplate restTemplate) throws Exception {
         String eventsUrl = WIKI_API_URL + "?action=query&format=json&list=search&srlimit=10&srsearch=" + 
                           URLEncoder.encode(query, StandardCharsets.UTF_8);
@@ -119,5 +134,151 @@ public class AppController {
         }
         
         return filteredEvents;
+    }
+
+    private JSONArray searchArtMovements(String query, RestTemplate restTemplate) throws Exception {
+        String movementsUrl = WIKI_API_URL + "?action=query&format=json&list=search&srlimit=10&srsearch=" + 
+                            URLEncoder.encode(query, StandardCharsets.UTF_8);
+        
+        String movementsResponse = restTemplate.getForObject(movementsUrl, String.class);
+        JSONObject movementsData = new JSONObject(movementsResponse);
+        JSONArray searchResults = movementsData.getJSONObject("query").getJSONArray("search");
+        
+        JSONArray filteredMovements = new JSONArray();
+        for (int i = 0; i < searchResults.length(); i++) {
+            JSONObject movement = searchResults.getJSONObject(i);
+            if (isValidArtMovement(movement.getString("title"))) {
+                filteredMovements.put(new JSONObject()
+                    .put("title", movement.getString("title"))
+                    .put("url", "https://en.wikipedia.org/?curid=" + movement.getInt("pageid"))
+                    .put("snippet", movement.getString("snippet")));
+            }
+        }
+        
+        return filteredMovements;
+    }
+
+    private JSONArray searchArtistNetwork(String pageId, RestTemplate restTemplate) throws Exception {
+        System.out.println("Searching artist network for pageId: " + pageId);
+        
+        String linksUrl = WIKI_API_URL + "?action=query&format=json&prop=links&pllimit=500&pageids=" + pageId;
+        String linksResponse = restTemplate.getForObject(linksUrl, String.class);
+        JSONObject pagesObj = new JSONObject(linksResponse)
+            .getJSONObject("query")
+            .getJSONObject("pages")
+            .getJSONObject(pageId);
+        
+        if (!pagesObj.has("links")) {
+            System.out.println("No links found for pageId: " + pageId);
+            return new JSONArray();
+        }
+        
+        JSONArray links = pagesObj.getJSONArray("links");
+        System.out.println("Found " + links.length() + " total links");
+        
+        String contentUrl = WIKI_API_URL + "?action=query&format=json&prop=extracts&pageids=" + pageId + "&explaintext=1";
+        String contentResponse = restTemplate.getForObject(contentUrl, String.class);
+        String content = new JSONObject(contentResponse)
+            .getJSONObject("query")
+            .getJSONObject("pages")
+            .getJSONObject(pageId)
+            .getString("extract");
+        
+        JSONArray artistNetwork = new JSONArray();
+        int processedLinks = 0;
+        
+        for (int i = 0; i < Math.min(links.length(), 50); i++) {
+            String linkedName = links.getJSONObject(i).getString("title");
+            
+            if (linkedName.contains(":") || linkedName.contains("movement") || 
+                linkedName.contains("style") || linkedName.contains("museum") ||
+                linkedName.contains("gallery") || linkedName.contains("art")) {
+                continue;
+            }
+            
+            // First, check if it's likely an artist page
+            String initialSearchUrl = WIKI_API_URL + "?action=query&format=json&list=search" +
+                             "&srsearch=intitle:\"" + URLEncoder.encode(linkedName, StandardCharsets.UTF_8) + 
+                             "\" \"painter\" \"artist\"";
+            
+            JSONObject initialResult = new JSONObject(restTemplate.getForObject(initialSearchUrl, String.class));
+            JSONArray initialResults = initialResult.getJSONObject("query").getJSONArray("search");
+            
+            if (initialResults.length() > 0) {
+                // Get the first result's content to verify it's an artist
+                JSONObject firstResult = initialResults.getJSONObject(0);
+                String pageContentUrl = WIKI_API_URL + "?action=query&format=json&prop=extracts&pageids=" + 
+                                      firstResult.getInt("pageid") + "&explaintext=1";
+                
+                String pageContent = restTemplate.getForObject(pageContentUrl, String.class);
+                String extract = new JSONObject(pageContent)
+                    .getJSONObject("query")
+                    .getJSONObject("pages")
+                    .getJSONObject(String.valueOf(firstResult.getInt("pageid")))
+                    .getString("extract")
+                    .toLowerCase();
+                
+                // Check if the page content suggests this is an artist
+                if ((extract.contains("painter") || extract.contains("artist") || 
+                     extract.contains("sculptor") || extract.contains("artistic")) &&
+                    !extract.contains("location") && !extract.contains("municipality")) {
+                    
+                    String context = findRelationshipContext(content, linkedName);
+                    if (context != null && !context.isEmpty()) {
+                        System.out.println("Found artist connection: " + linkedName);
+                        artistNetwork.put(new JSONObject()
+                            .put("title", linkedName)
+                            .put("url", "https://en.wikipedia.org/?curid=" + firstResult.getInt("pageid"))
+                            .put("snippet", context));
+                    }
+                }
+            }
+            
+            processedLinks++;
+            if (processedLinks % 10 == 0) {
+                System.out.println("Processed " + processedLinks + " links");
+            }
+        }
+        
+        System.out.println("Found " + artistNetwork.length() + " artist connections");
+        return artistNetwork;
+    }
+    
+    private String findRelationshipContext(String content, String artistName) {
+        if (content == null || artistName == null) return null;
+        
+        // Make case-insensitive
+        String lowerContent = content.toLowerCase();
+        String lowerArtistName = artistName.toLowerCase();
+        
+        int nameIndex = lowerContent.indexOf(lowerArtistName);
+        if (nameIndex == -1) return null;
+        
+        // Expand context window and ensure proper sentence boundaries
+        int start = Math.max(0, nameIndex - 150);
+        int end = Math.min(content.length(), nameIndex + artistName.length() + 150);
+        
+        // Find sentence boundaries
+        while (start > 0 && content.charAt(start) != '.') start--;
+        while (end < content.length() && content.charAt(end) != '.') end++;
+        
+        // Adjust boundaries
+        start = start == 0 ? 0 : start + 1;
+        end = end == content.length() ? end : end + 1;
+        
+        return content.substring(start, end).trim();
+    }
+
+    private boolean isValidArtMovement(String title) {
+        String lowerTitle = title.toLowerCase();
+        return lowerTitle.contains("movement") ||
+               lowerTitle.contains("modernism") ||
+               lowerTitle.contains("expressionism") ||
+               lowerTitle.contains("surrealism") ||
+               lowerTitle.contains("cubism") ||
+               lowerTitle.contains("futurism") ||
+               lowerTitle.contains("dadaism") ||
+               lowerTitle.contains("impressionism") ||
+               lowerTitle.contains("abstract art");
     }
 }
