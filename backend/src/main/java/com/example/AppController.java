@@ -110,7 +110,7 @@ public class AppController {
 
     private String buildArtMovementsQuery(int birthYear, int deathYear) {
         int year = 1886;
-        return String.format("\"art movement\" %d", year);
+        return String.format("\"art movement\" %d..%d", birthYear, deathYear);
         /*
         return String.format(
             
@@ -127,6 +127,8 @@ public class AppController {
     private JSONArray searchPoliticalEvents(String query, RestTemplate restTemplate) throws Exception {
         String eventsUrl = WIKI_API_URL + "?action=query&format=json&list=search&srlimit=10&srsearch=" + 
                           URLEncoder.encode(query, StandardCharsets.UTF_8);
+        System.out.println(query);
+        System.out.println(eventsUrl);
         
         String eventsResponse = restTemplate.getForObject(eventsUrl, String.class);
         JSONObject eventsData = new JSONObject(eventsResponse);
@@ -145,10 +147,13 @@ public class AppController {
     }
 
     private JSONArray searchArtMovements(String query, RestTemplate restTemplate) throws Exception {
-        String movementsUrl = WIKI_API_URL + "?action=query&format=json&list=search&srlimit=10&srsearch=" + 
-                            URLEncoder.encode(query, StandardCharsets.UTF_8);
+        //String movementsUrl = WIKI_API_URL + "?action=query&format=json&list=search&srlimit=10&srsearch=" + 
+        //                    URLEncoder.encode(query, StandardCharsets.UTF_8);
+        String movementsUrl = WIKI_API_URL + "?action=query&format=json&list=search&srlimit=10&srsearch=" + query;
+        System.out.println(query);
+        System.out.println(movementsUrl);
         //WORKS
-        movementsUrl = "https://en.wikipedia.org/w/api.php?action=query&format=json&list=search&srlimit=10&srsearch=\"art movement\" 1886";
+        //movementsUrl = "https://en.wikipedia.org/w/api.php?action=query&format=json&list=search&srlimit=10&srsearch=\"art movement\" 1853..1890";
 
         String movementsResponse = restTemplate.getForObject(movementsUrl, String.class);
         JSONObject movementsData = new JSONObject(movementsResponse);
@@ -293,6 +298,9 @@ public class AppController {
                lowerTitle.contains("futurism") ||
                lowerTitle.contains("dadaism") ||
                lowerTitle.contains("impressionism") ||
-               lowerTitle.contains("abstract art");
+               lowerTitle.contains("abstract art") ||
+               lowerTitle.contains("renaissance") ||
+               lowerTitle.contains("realism") ||
+               lowerTitle.contains("pop");
     }
 }
