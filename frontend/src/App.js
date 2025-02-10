@@ -5,6 +5,7 @@ function App() {
   const [artistName, setArtistName] = useState("");
   const [scope, setScope] = useState("political-events");
   const [artistUrl, setArtistUrl] = useState("");
+  const [events, setEvents] = useState([]);
   const [error, setError] = useState("");
 
   const searchArtist = async () => {
@@ -24,19 +25,22 @@ function App() {
       if (data.error) {
         setError(data.error);
         setArtistUrl("");
+        setEvents([]);
       } else {
-        setArtistUrl(data.url);
+        setArtistUrl(data.artistUrl);
+        setEvents(data.events || []);
         setError("");
       }
     } catch (err) {
       setError("Failed to search artist");
       setArtistUrl("");
+      setEvents([]);
     }
   };
 
   return (
     <div className="app-container">
-      <h1>Artist Timeline Explorer</h1>
+      <h1>Art Context Engine</h1>
       
       <div className="search-form">
         <div className="form-group">
@@ -69,6 +73,7 @@ function App() {
       
       {artistUrl && (
         <div className="result">
+          <h2>Artist Information</h2>
           <a 
             href={artistUrl}
             target="_blank"
@@ -76,6 +81,22 @@ function App() {
           >
             View Artist Details on Wikipedia
           </a>
+          
+          {events.length > 0 && (
+            <div className="events-list">
+              <h2>[WIP] Scope: Political Events</h2>
+              {events.map((event, index) => (
+                <div key={index} className="event-item">
+                  <h4>
+                    <a href={event.url} target="_blank" rel="noopener noreferrer">
+                      {event.title}
+                    </a>
+                  </h4>
+                  <p dangerouslySetInnerHTML={{ __html: event.snippet }} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

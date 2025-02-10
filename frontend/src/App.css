@@ -58,3 +58,27 @@ button:hover {
 .result a:hover {
   text-decoration: underline;
 }
+
+.result a:hover {
+  text-decoration: underline;
+}
+
+.events-list {
+  margin-top: 2rem;
+}
+
+.event-item {
+  margin: 1.5rem 0;
+  padding: 1rem;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.event-item h4 {
+  margin: 0 0 0.5rem 0;
+}
+
+.event-item p {
+  margin: 0;
+  color: #666;
+}
