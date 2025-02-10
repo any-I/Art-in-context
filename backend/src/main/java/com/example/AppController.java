@@ -33,6 +33,8 @@ public class AppController {
             if (lifespan == null) {
                 return ResponseEntity.ok(new JSONObject().put("error", "Could not determine artist's lifespan").toString());
             }
+            System.out.println("hello world: " +  lifespan[0] + " - " + lifespan[1]);
+
 
             JSONObject result = new JSONObject();
             result.put("artistUrl", "https://en.wikipedia.org/?curid=" + artistPageId);
@@ -107,13 +109,19 @@ public class AppController {
     }
 
     private String buildArtMovementsQuery(int birthYear, int deathYear) {
+        int year = 1886;
+        return String.format("\"art movement\" %d", year);
+        /*
         return String.format(
+            
             "(\"art movement\" OR \"artistic movement\" OR modernism OR " +
             "expressionism OR surrealism OR cubism OR futurism OR " +
             "dadaism OR impressionism OR \"abstract art\") " +
             "%d..%d",
             birthYear, deathYear
-        );
+
+        );*/
+
     }
 
     private JSONArray searchPoliticalEvents(String query, RestTemplate restTemplate) throws Exception {
@@ -139,9 +147,15 @@ public class AppController {
     private JSONArray searchArtMovements(String query, RestTemplate restTemplate) throws Exception {
         String movementsUrl = WIKI_API_URL + "?action=query&format=json&list=search&srlimit=10&srsearch=" + 
                             URLEncoder.encode(query, StandardCharsets.UTF_8);
-        
+        //WORKS
+        movementsUrl = "https://en.wikipedia.org/w/api.php?action=query&format=json&list=search&srlimit=10&srsearch=\"art movement\" 1886";
+
         String movementsResponse = restTemplate.getForObject(movementsUrl, String.class);
         JSONObject movementsData = new JSONObject(movementsResponse);
+
+        // One-liner to print the total number of search results
+        System.out.println("Total hits: " + movementsData.getJSONObject("query").getJSONObject("searchinfo").getInt("totalhits"));
+
         JSONArray searchResults = movementsData.getJSONObject("query").getJSONArray("search");
         
         JSONArray filteredMovements = new JSONArray();
