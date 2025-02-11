@@ -1,12 +1,31 @@
-import React, { useState } from "react";
-import "./App.css";
+import React, { useState } from 'react';
+import './App.css';
 
-function App() {
+const App = () => {
   const [artistName, setArtistName] = useState("");
-  const [scope, setScope] = useState("political-events");
+  const [currentScope, setCurrentScope] = useState("");
+  const [scopes, setScopes] = useState([]);
   const [artistUrl, setArtistUrl] = useState("");
   const [events, setEvents] = useState([]);
   const [error, setError] = useState("");
+
+  const addScope = () => {
+    if (currentScope.trim()) {
+      setScopes([...scopes, currentScope.trim()]);
+      setCurrentScope("");
+    }
+  };
+
+  const removeScope = (indexToRemove) => {
+    setScopes(scopes.filter((_, index) => index !== indexToRemove));
+  };
+
+  const handleKeyPress = (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      addScope();
+    }
+  };
 
   const searchArtist = async () => {
     if (!artistName) {
@@ -15,9 +34,15 @@ function App() {
     }
 
     try {
+      const queryParams = new URLSearchParams({
+        name: artistName,
+        scopes: JSON.stringify(scopes)
+      });
+
       const response = await fetch(
-        `http://localhost:8080/api/artwork?name=${encodeURIComponent(artistName)}&scope=${scope}`
+        `http://localhost:8080/api/artwork?${queryParams}`
       );
+      
       if (!response.ok) throw new Error("Error searching artist");
 
       const data = await response.json();
@@ -38,15 +63,6 @@ function App() {
     }
   };
 
-  const getListTitle = () => {
-    switch(scope) {
-      case 'political-events': return 'Political Events';
-      case 'art-movements': return 'Art Movements';
-      case 'artist-network': return 'Artist Network';
-      default: return 'Events';
-    }
-  };
-
   return (
     <div className="app-container">
       <h1>Artist Timeline Explorer</h1>
@@ -61,20 +77,51 @@ function App() {
             placeholder="Enter artist name"
           />
         </div>
-        
+
         <div className="form-group">
-          <label>Search Scope</label>
-          <select
-            value={scope}
-            onChange={(e) => setScope(e.target.value)}
-          >
-            <option value="political-events">Political Events</option>
-            <option value="art-movements">Art Movements</option>
-            <option value="artist-network">Artist Network</option>
-          </select>
+          <label>Add Scopes</label>
+          <div className="scope-input">
+            <input
+              type="text"
+              value={currentScope}
+              onChange={(e) => setCurrentScope(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Enter a scope"
+            />
+            <button
+              onClick={addScope}
+              className="add-scope-btn"
+            >
+              +
+            </button>
+          </div>
+          
+          {scopes.length > 0 && (
+            <div className="scope-tags">
+              {scopes.map((scope, index) => (
+                <div
+                  key={index}
+                  className="scope-tag"
+                >
+                  <span>{scope}</span>
+                  <button
+                    onClick={() => removeScope(index)}
+                    className="remove-scope-btn"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <button onClick={searchArtist}>Search</button>
+        <button
+          onClick={searchArtist}
+          className="search-btn"
+        >
+          Search
+        </button>
       </div>
 
       {error && <div className="error">{error}</div>}
@@ -92,11 +139,15 @@ function App() {
           
           {events.length > 0 && (
             <div className="events-list">
-              <h3>Related {getListTitle()}</h3>
+              <h3>Related Information</h3>
               {events.map((event, index) => (
                 <div key={index} className="event-item">
                   <h4>
-                    <a href={event.url} target="_blank" rel="noopener noreferrer">
+                    <a
+                      href={event.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
                       {event.title}
                     </a>
                   </h4>
@@ -109,6 +160,6 @@ function App() {
       )}
     </div>
   );
-}
+};
 
 export default App;
