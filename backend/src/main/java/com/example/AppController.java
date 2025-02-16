@@ -102,10 +102,52 @@ public class AppController {
 
     private String buildPoliticalEventsQuery(int birthYear, int deathYear) {
         return String.format(
-            "(revolution OR war OR political OR uprising OR conflict OR regime) " +
-            "%d..%d", 
+            "(\"political revolution\" OR \"civil war\" OR \"world war\" OR " +
+            "\"political movement\" OR \"rebellion\" OR \"uprising\" OR " + 
+            "\"revolution\" OR \"coup\" OR \"revolt\") " +
+            "%d..%d",
             birthYear, deathYear
         );
+    }
+
+    private JSONArray searchPoliticalEvents(String query, RestTemplate restTemplate) throws Exception {
+        String eventsUrl = WIKI_API_URL + "?action=query&format=json&list=search&srlimit=10&srsearch=" + query;
+        System.out.println(query);
+        System.out.println(eventsUrl);
+    
+        String eventsResponse = restTemplate.getForObject(eventsUrl, String.class);
+        JSONObject eventsData = new JSONObject(eventsResponse);
+    
+        System.out.println("Total hits: " + eventsData.getJSONObject("query").getJSONObject("searchinfo").getInt("totalhits"));
+    
+        JSONArray searchResults = eventsData.getJSONObject("query").getJSONArray("search");
+        
+        JSONArray filteredEvents = new JSONArray();
+        for (int i = 0; i < searchResults.length(); i++) {
+            JSONObject event = searchResults.getJSONObject(i);
+            if (isValidPoliticalEvent(event.getString("title"))) {
+                filteredEvents.put(new JSONObject()
+                    .put("title", event.getString("title"))
+                    .put("url", "https://en.wikipedia.org/?curid=" + event.getInt("pageid"))
+                    .put("snippet", event.getString("snippet")));
+            }
+        }
+        
+        return filteredEvents;
+    }
+    
+    private boolean isValidPoliticalEvent(String title) {
+        String lowerTitle = title.toLowerCase();
+        return (lowerTitle.contains("revolution") ||
+               lowerTitle.contains("war") ||
+               lowerTitle.contains("rebellion") ||
+               lowerTitle.contains("uprising") ||
+               lowerTitle.contains("revolt") ||
+               lowerTitle.contains("coup") ||
+               lowerTitle.contains("political") ||
+               lowerTitle.contains("movement") ||
+               lowerTitle.contains("protest")) &&
+               !lowerTitle.contains("list of");
     }
 
     private String buildArtMovementsQuery(int birthYear, int deathYear) {
@@ -121,28 +163,6 @@ public class AppController {
 
         );
 
-    }
-
-    private JSONArray searchPoliticalEvents(String query, RestTemplate restTemplate) throws Exception {
-        String eventsUrl = WIKI_API_URL + "?action=query&format=json&list=search&srlimit=10&srsearch=" + 
-                          URLEncoder.encode(query, StandardCharsets.UTF_8);
-        System.out.println(query);
-        System.out.println(eventsUrl);
-        
-        String eventsResponse = restTemplate.getForObject(eventsUrl, String.class);
-        JSONObject eventsData = new JSONObject(eventsResponse);
-        JSONArray searchResults = eventsData.getJSONObject("query").getJSONArray("search");
-        
-        JSONArray filteredEvents = new JSONArray();
-        for (int i = 0; i < searchResults.length(); i++) {
-            JSONObject event = searchResults.getJSONObject(i);
-            filteredEvents.put(new JSONObject()
-                .put("title", event.getString("title"))
-                .put("url", "https://en.wikipedia.org/?curid=" + event.getInt("pageid"))
-                .put("snippet", event.getString("snippet")));
-        }
-        
-        return filteredEvents;
     }
 
     private JSONArray searchArtMovements(String query, RestTemplate restTemplate) throws Exception {
