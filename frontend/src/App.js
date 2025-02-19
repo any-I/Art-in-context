@@ -7,6 +7,8 @@ function App() {
   const [artistUrl, setArtistUrl] = useState("");
   const [events, setEvents] = useState([]);
   const [error, setError] = useState("");
+  const [searchID, setSearchID] = useState("");
+  const [searchSummary, setSearchSummary] = useState("");
 
   const searchArtist = async () => {
     if (!artistName) {
@@ -26,17 +28,41 @@ function App() {
         setError(data.error);
         setArtistUrl("");
         setEvents([]);
+        setSearchID("");
       } else {
         setArtistUrl(data.artistUrl);
         setEvents(data.events || []);
         setError("");
+        setSearchID(data.searchID);
       }
+      setSearchSummary("");
     } catch (err) {
       setError("Failed to search artist");
       setArtistUrl("");
       setEvents([]);
+      setSearchID("");
+      setSearchSummary("");
     }
   };
+
+  const summarizeSearch = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/summarize?searchID=${searchID}&artistName=${artistName}`
+      );
+      if (!response.ok) throw new Error("Error summarizing search results");
+
+      const data = await response.json();
+
+      if (data.error) {
+        setSearchSummary("");
+      } else {
+        setSearchSummary(data.summary);
+      }
+    } catch (err) {
+      setSearchSummary("");
+    }
+  }
 
   const getListTitle = () => {
     switch(scope) {
@@ -75,9 +101,20 @@ function App() {
         </div>
 
         <button onClick={searchArtist}>Search</button>
+
+        {artistUrl && <button onClick={summarizeSearch}>Summarize</button>}
       </div>
 
       {error && <div className="error">{error}</div>}
+
+      {searchSummary && (
+        <div className="summary">
+          <h2>Summary</h2>
+          <div className="summary-text">
+            <p>{searchSummary}</p>
+          </div>
+        </div>
+      )}
       
       {artistUrl && (
         <div className="result">

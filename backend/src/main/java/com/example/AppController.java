@@ -2,6 +2,9 @@ package com.example;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.json.JSONObject;
 import org.json.JSONArray;
@@ -9,12 +12,17 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.UUID;
 
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api")
 public class AppController {
     private static final String WIKI_API_URL = "https://en.wikipedia.org/w/api.php";
+    private static final String PYTHON_SERVICE_URL = "http://localhost:5001";
+
+    private final ConcurrentHashMap<String, JSONArray> politicalEventSearchCache = new ConcurrentHashMap<String, JSONArray>();
 
     @GetMapping("/artwork")
     public ResponseEntity<String> getArtistInfo(
@@ -39,10 +47,21 @@ public class AppController {
             JSONObject result = new JSONObject();
             result.put("artistUrl", "https://en.wikipedia.org/?curid=" + artistPageId);
 
+            // Unique identifier for each search request
+            String searchID = UUID.randomUUID().toString();
+            result.put("searchID", searchID);
+            System.out.println("ID: " + searchID);
+
             if (scope.equals("political-events")) {
                 String politicalEventsQuery = buildPoliticalEventsQuery(lifespan[0], lifespan[1]);
                 JSONArray events = searchPoliticalEvents(politicalEventsQuery, restTemplate);
+
+                // Store events in cache with unique identifier
+                politicalEventSearchCache.put(searchID, events);
+
                 result.put("events", events);
+                
+                // indexPoliticalEvents(events, restTemplate);
             } else if (scope.equals("art-movements")) {
                 String artMovementsQuery = buildArtMovementsQuery(lifespan[0], lifespan[1]);
                 JSONArray movements = searchArtMovements(artMovementsQuery, restTemplate);
@@ -58,6 +77,49 @@ public class AppController {
             return ResponseEntity.badRequest().body(new JSONObject()
                 .put("error", "Error searching artist: " + e.getMessage()).toString());
         }
+    }
+
+    @GetMapping("/summarize")
+    public ResponseEntity<String> summarizeSearchResults(
+        @RequestParam String searchID,
+        @RequestParam String artistName
+    ) {
+        // Check search results are in the cache
+        if (!politicalEventSearchCache.containsKey(searchID)) {
+            System.out.println("Search ID not not found in cache");
+            return ResponseEntity.badRequest().body(new JSONObject()
+                .put("error", "Invalid search ID or cache expired").toString());
+        }
+
+        try {
+            System.out.println("/summarize " + searchID);
+            JSONArray events = politicalEventSearchCache.get(searchID);
+            // Check events is not empty - prevents spurious LLM calls
+            if (events.length() == 0) {
+                return ResponseEntity.badRequest().body(new JSONObject()
+                    .put("error", "No search results to summarize").toString());
+            }
+
+            RestTemplate restTemplate = new RestTemplate();
+
+            // Send request to Python microservices to get summary from events
+            JSONObject pythonServiceRequest = new JSONObject();
+            pythonServiceRequest.put("artistName", artistName);
+            pythonServiceRequest.put("events", events);
+
+            String llmServiceURL = PYTHON_SERVICE_URL + "/summarize";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<String> entity = new HttpEntity<>(pythonServiceRequest.toString(), headers);
+            
+            ResponseEntity<String> response = restTemplate.postForEntity(llmServiceURL, entity, String.class);
+            return response;
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new JSONObject()
+                .put("error", "Error summarizing search results: " + e.getMessage()).toString());
+        }
+        
     }
 
     private String getArtistPageId(String name, RestTemplate restTemplate) throws Exception {
@@ -132,7 +194,7 @@ public class AppController {
                     .put("snippet", event.getString("snippet")));
             }
         }
-        
+
         return filteredEvents;
     }
     
@@ -148,6 +210,29 @@ public class AppController {
                lowerTitle.contains("movement") ||
                lowerTitle.contains("protest")) &&
                !lowerTitle.contains("list of");
+    }
+
+    private void indexPoliticalEvents(JSONArray events, RestTemplate restTemplate) {
+        System.out.println("indexPoliticalEvents");
+        String vectorDBServiceUrl = PYTHON_SERVICE_URL + "/index";
+
+        System.out.println("--- article titles:");
+        JSONArray article_titles = new JSONArray();
+        for (int i = 0; i < events.length(); i++) {
+            System.out.println(events.getJSONObject(i).getString("title"));
+            article_titles.put(events.getJSONObject(i).getString("title"));
+        }
+        System.out.println("---");
+
+        JSONObject request = new JSONObject();
+        request.put("article_titles", article_titles);
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        HttpEntity<String> entity = new HttpEntity<>(request.toString(), headers);
+        ResponseEntity<String> response = restTemplate.postForEntity(vectorDBServiceUrl, entity, String.class);
+        System.out.println(response);
     }
 
     private String buildArtMovementsQuery(int birthYear, int deathYear) {
