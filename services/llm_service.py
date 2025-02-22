@@ -10,8 +10,7 @@ app = FastAPI()
 # Load openai
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-if not OPENAI_API_KEY:
-    raise ValueError("Missing OpenAI API Key. Set OPENAI_API_KEY as an environment variable or in a .env file.")
+if not OPENAI_API_KEY: raise ValueError("Missing OpenAI API Key. Set OPENAI_API_KEY as an environment variable or in a .env file.")
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 
