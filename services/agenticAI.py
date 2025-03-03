@@ -1,27 +1,31 @@
 from fastapi import FastAPI
 from dotenv import load_dotenv
 from huggingface_hub import login
-from smolagents import CodeAgent, DuckDuckGoSearchTool, HfApiModel, ToolCallingAgent, PythonInterpreterTool
+from smolagents import CodeAgent, DuckDuckGoSearchTool, HfApiModel, ToolCallingAgent, OpenAIServerModel, PythonInterpreterTool
 import os
 import openai
 
 load_dotenv()
 app = FastAPI()
 
-def init_fns():
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    if not OPENAI_API_KEY: raise ValueError("Missing or incorrect OpenAI API Key.")
-    openAIClient = openai.OpenAI(api_key=OPENAI_API_KEY)
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY: raise ValueError("Missing or incorrect OpenAI API Key.")
+openAIClient = openai.OpenAI(api_key=OPENAI_API_KEY)
 
-    HF_API_TOKEN = os.getenv("HF_API_TOKEN")
-    if not HF_API_TOKEN: raise ValueError("Missing or incorrect HF API Token.")
-    HFlogin = login(token=HF_API_TOKEN)
+HF_API_TOKEN = os.getenv("HF_API_TOKEN")
+if not HF_API_TOKEN: raise ValueError("Missing or incorrect HF API Token.")
+HFlogin = login(token=HF_API_TOKEN)
 
-model = HfApiModel()
+model = OpenAIServerModel(
+    model_id = "gpt-4o-mini",
+    api_base = "https://api.openai.com/v1",
+    api_key = OPENAI_API_KEY
+)
+# model = HfApiModel()
 
 agent = ToolCallingAgent(
     tools=[DuckDuckGoSearchTool(), PythonInterpreterTool()],
-    model=model,
+    model=model
 )
 
 # todo:
