@@ -37,7 +37,7 @@ agent = ToolCallingAgent(
 modified_prompt = open("system_prompt.txt", "r", encoding="utf-8").read()
 agent.prompt_templates["system_prompt"] = modified_prompt
 print(agent.prompt_templates["system_prompt"])
-# from Michaelangelo: history, political background -> chatgpt ask for query for agent ai: "Michelangelo history and political background" -> Explore Michelangelo Buonarroti's historical context, including his political influences, affiliations, and impact of Renaissance politics on his work.
+# from Michaelangelo: history, political background -> chatgpt ask for query for agent ai: "Michelangelo: [history, political background]" -> Explore Michelangelo Buonarroti's historical context, including his political influences, affiliations, and impact of Renaissance politics on his work.
 agent_query = "Explore Michelangelo Buonarroti's historical context, including his political influences, affiliations, and impact of Renaissance politics on his work. Make sure to cite sources!"
 
 response = agent.run(agent_query)
