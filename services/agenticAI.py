@@ -21,7 +21,6 @@ model = OpenAIServerModel(
     api_base = "https://api.openai.com/v1",
     api_key = OPENAI_API_KEY
 )
-# model = HfApiModel()
 
 agent = ToolCallingAgent(
     tools=[DuckDuckGoSearchTool(), PythonInterpreterTool()],
@@ -29,16 +28,15 @@ agent = ToolCallingAgent(
 )
 
 # todo:
-#  1. search + filters --> agent query
-#  2. tune system prompt to use more reputable sources
-#  3. maybe cite sources per fact that is stated
-#  4. use OpenAI model from HF
+#  1. search + filters --> agent query -> done
+#  2. tune system prompt to use more reputable sources -> done
+#  3. maybe cite sources per fact that is stated -> done
+#  4. use OpenAI model from HF -> done
 
 modified_prompt = open("system_prompt.txt", "r", encoding="utf-8").read()
 agent.prompt_templates["system_prompt"] = modified_prompt
 print(agent.prompt_templates["system_prompt"])
-# from Michaelangelo: history, political background -> chatgpt ask for query for agent ai: "Michelangelo: [history, political background]" -> Explore Michelangelo Buonarroti's historical context, including his political influences, affiliations, and impact of Renaissance politics on his work.
-agent_query = "Explore Michelangelo Buonarroti's historical context, including his political influences, affiliations, and impact of Renaissance politics on his work. Make sure to cite sources!"
+agent_query = "Michelangelo: [history, political background]"
 
 response = agent.run(agent_query)
 
