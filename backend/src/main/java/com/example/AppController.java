@@ -7,6 +7,7 @@ import org.springframework.http.HttpEntity;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.json.JSONObject;
+import org.apache.catalina.valves.JsonAccessLogValve;
 import org.json.JSONArray;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -119,7 +120,34 @@ public class AppController {
             return ResponseEntity.badRequest().body(new JSONObject()
                 .put("error", "Error summarizing search results: " + e.getMessage()).toString());
         }
-        
+    }
+
+    @GetMapping("/agent")
+    public ResponseEntity<String> searchWithAgents(
+        @RequestParam String artistName,
+        @RequestParam String context
+    ) {
+        System.out.println("/agent: " + artistName + ", " + context);
+        try {
+            RestTemplate restTemplate = new RestTemplate();
+
+            JSONObject pythonServiceRequest = new JSONObject();
+            pythonServiceRequest.put("artistName", artistName);
+            JSONArray contextArray = new JSONArray(context.split(","));
+            pythonServiceRequest.put("context", contextArray);
+
+            String llmServiceURL = PYTHON_SERVICE_URL + "/agent";
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            HttpEntity<String> entity = new HttpEntity<>(pythonServiceRequest.toString(), headers);
+
+            ResponseEntity<String> response = restTemplate.postForEntity(llmServiceURL, entity, String.class);
+            return response;
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(new JSONObject()
+                .put("error", "Error searching with agents: " + e.getMessage()).toString());
+        }
     }
 
     private String getArtistPageId(String name, RestTemplate restTemplate) throws Exception {
