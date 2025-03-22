@@ -29,6 +29,20 @@ curl -X POST "http://localhost:5001/summarize" \
      -H "Content-Type: application/json" \
      -d '{"events": [{"title": "French Revolution", "snippet": "A major event in the late 18th century..."}, {"title": "Impressionism", "snippet": "An art movement that originated in the 19th century..."}]}'
 ```
+Windows (Powershell):
+```
+Invoke-RestMethod -Uri "http://localhost:5001/summarize" `
+    -Method POST `
+    -Headers @{ "Content-Type" = "application/json" } `
+    -Body '{
+        "artistName": "Monet",
+        "events": [
+            { "title": "French Revolution", "snippet": "A major event in the late 18th century..." },
+            { "title": "Impressionism", "snippet": "An art movement that originated in the 19th century..." }
+        ]
+    }'
+```
+
 
 ### API Keys
 API keys should not be hardcoded into the source code for security reasons.

@@ -6,3 +6,4 @@ numpy
 requests
 langchain
 openai
+load_dotenv
