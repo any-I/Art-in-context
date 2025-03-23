@@ -60,8 +60,9 @@ def chunk_text(text, chunk_size=512, overlap=50):
 def get_embedding(text):
     """Converts text into vector embedding"""
     response = client.embeddings.create(
-        model="text-embedding-3-large",
-        input=text
+        model="text-embedding-3-small",
+        input=text,
+        dimensions=384
     )
     return np.array(response.data[0].embedding)
 
@@ -110,5 +111,4 @@ def search_faiss(request: QueryRequest):
     query_embedding = np.array([get_embedding(request.query)], dtype=np.float32)
     distances, indices = index.search(query_embedding, request.top_k)
 
-    results = [{"text": doc_store[idx]} for idx in indices[0]]
     return {"results": results}
