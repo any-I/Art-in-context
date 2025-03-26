@@ -41,6 +41,8 @@ curl -X POST "http://localhost:5001/summarize" \
             ]
          }'
 
+### Data Folder
+Download data folder from artmap drive as serivces/data/*.jsonl
 
 ### API Keys
 API keys should not be hardcoded into the source code for security reasons.
@@ -48,4 +50,6 @@ API keys should not be hardcoded into the source code for security reasons.
 To use **OpenAI API** for the RAG microservices, create a `services/.env` file containing:
 ```
 OPENAI_API_KEY=<your_openai_api_key_here>
+PINECONE_KEY=<your_pinecone_api_key_here>
 ```
+Note: Copy of Pinecone & OpenAI key can be found in artmap email.
