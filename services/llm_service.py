@@ -6,10 +6,10 @@ from pydantic import BaseModel
 from huggingface_hub import login
 from smolagents import CodeAgent, DuckDuckGoSearchTool, HfApiModel, ToolCallingAgent, OpenAIServerModel, PythonInterpreterTool
 
-# Initialize FastAPI app
+### Initialize FastAPI app ###
 app = FastAPI()
 
-# Load APIs
+### Load APIs ###
 load_dotenv()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 if not OPENAI_API_KEY: raise ValueError("Missing or incorrect OpenAI API Key.")
@@ -25,12 +25,32 @@ openAIModel = OpenAIServerModel(
     api_key = OPENAI_API_KEY
 )
 
-# Set up for agents
+### Set up for AGENTS ###
 researcher_prompt = open("researcher_prompt.txt", "r", encoding="utf-8").read()
 historian_prompt = open("historian_prompt.txt", "r", encoding="utf-8").read()
+print(researcher_prompt)
+
+SEARCH_CALL_LIMIT = 3  # Maximum number of searches per query
+class RateLimitedSearchTool(DuckDuckGoSearchTool):
+    def __init__(self):
+        super().__init__()
+        self.call_count = 0
+    def run(self, query):
+        if self.call_count >= SEARCH_CALL_LIMIT:
+            print(f"Search limit hit. Skipping query: {query}")
+            return "No additional searches allowed due to rate limits. Continue to next step and DO NOT ATTEMPT TO SEARCH AGAIN."
+        self.call_count += 1
+        try:
+            return super().run(query)
+        except Exception as e:
+            print(e)
+            return "Could not search. Continue to the next step and DO NOT ATTEMPT TO SEARCH AGAIN."
+    def reset(self):  # Reset after each full query cycle
+        self.call_count = 0
+rate_limited_search_tool = RateLimitedSearchTool()
 
 researcher_agent = ToolCallingAgent(
-    tools=[DuckDuckGoSearchTool()],
+    tools=[rate_limited_search_tool, PythonInterpreterTool()],
     model=openAIModel,
 )
 researcher_agent.prompt_templates["system_prompt"] = researcher_prompt
@@ -42,6 +62,8 @@ historian_agent = ToolCallingAgent(
 historian_agent.prompt_templates["system_prompt"] = historian_prompt
 
 
+### Request Format Classes ###
+
 class SummarizeRequest(BaseModel):
     artistName: str
     events: list # containing {'title':'...', 'snippet':'...'} elements
@@ -50,6 +72,8 @@ class AgentsRequest(BaseModel):
     artistName: str
     context: list
 
+
+### ENDPOINTS ###
 
 @app.post("/summarize")
 def summarize_events(request: SummarizeRequest):
@@ -69,6 +93,7 @@ def summarize_events(request: SummarizeRequest):
     except Exception as e:
         return {"summary": "Error generating summary."}
 
+
 @app.post("/agent")
 def run_agents(request: AgentsRequest):
     print(AgentsRequest)
@@ -76,6 +101,7 @@ def run_agents(request: AgentsRequest):
     print(query_string)
 
     try:
+        rate_limited_search_tool.reset()
         researcher_response = researcher_agent.run(query_string)
         print("------ RESEARCHER ------")
         print(researcher_response)
