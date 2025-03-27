@@ -6,5 +6,7 @@ numpy
 requests
 langchain
 openai
-load_dotenv
+dotenv
+huggingface_hub
+smolagents
 pinecone

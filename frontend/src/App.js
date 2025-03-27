@@ -9,6 +9,7 @@ function App() {
   const [error, setError] = useState("");
   const [searchID, setSearchID] = useState("");
   const [searchSummary, setSearchSummary] = useState("");
+  const [agentSearchResults, setAgentSearchResults] = useState("");
 
   const searchArtist = async () => {
     if (!artistName) {
@@ -42,6 +43,7 @@ function App() {
       setEvents([]);
       setSearchID("");
       setSearchSummary("");
+      setAgentSearchResults("");
     }
   };
 
@@ -61,6 +63,25 @@ function App() {
       }
     } catch (err) {
       setSearchSummary("");
+    }
+  }
+
+  const agentSearch = async () => {
+    try {
+      const response = await fetch(
+        `http://localhost:8080/api/agent?artistName=${artistName}&context=${scope}`
+      );
+      if (!response.ok) throw new Error("Error summarizing search results");
+
+      const data = await response.json();
+
+      if (data.error) {
+        setAgentSearchResults("");
+      } else {
+        setAgentSearchResults(data.events);
+      }
+    } catch (err) {
+      setAgentSearchResults("");
     }
   }
 
@@ -101,6 +122,7 @@ function App() {
         </div>
 
         <button onClick={searchArtist}>Search</button>
+        <button onClick={agentSearch}>AI Search</button>
 
         {artistUrl && <button onClick={summarizeSearch}>Summarize</button>}
       </div>
@@ -112,6 +134,15 @@ function App() {
           <h2>Summary</h2>
           <div className="summary-text">
             <p>{searchSummary}</p>
+          </div>
+        </div>
+      )}
+
+      {agentSearchResults && (
+        <div className="agentSearch">
+          <h2>AI Search Results</h2>
+          <div className="agent-search-text">
+            <p>{agentSearchResults}</p>
           </div>
         </div>
       )}
