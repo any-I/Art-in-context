@@ -1,4 +1,6 @@
 /data
-App.class
-AppController.class
-AppTest.class
+/backend/target
+/backend/*.jar
+/backend/*.war
+/backend/.idea/
+/backend/.vscode/
