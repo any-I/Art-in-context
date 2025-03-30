@@ -1,25 +1,5 @@
-# Backend
-/backend/target
-/backend/*.jar
-/backend/*.war
-/backend/.idea/
-.backend/.vscode/
-
-# Frontend
-/frontend/node_modules/
-/frontend/build/
-/frontend/.env
-/frontend/.vscode/
-
-# Python Services
-/services/__pycache__/
-/services/.env
-/services/data
-
-# Global
 .DS_Store
 Thumbs.db
 logs/
 *.log
-
-data/
+/data
