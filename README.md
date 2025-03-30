@@ -7,7 +7,8 @@ Can independently test backend with something like `localhost:8080/api/artwork?n
 
 ### Javascript frontend:
 1. `cd frontend`
-2. `npm start`
+2. (if running for the first time, or updated dependencies:) `npm install`
+3. `npm start`
 
 Should open on local
 
