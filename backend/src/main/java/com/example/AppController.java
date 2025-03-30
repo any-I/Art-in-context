@@ -9,8 +9,6 @@ import org.springframework.http.ResponseEntity;
 import org.json.JSONObject;
 import org.apache.catalina.valves.JsonAccessLogValve;
 import org.json.JSONArray;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.core.type.TypeReference;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
@@ -30,27 +28,19 @@ public class AppController {
     @GetMapping("/artwork")
     public ResponseEntity<String> getArtistInfo(
             @RequestParam String name,
-            @RequestParam String scopes) {
+            @RequestParam(defaultValue = "political-events") String scope) {
         
         RestTemplate restTemplate = new RestTemplate();
         
         try {
-            // Parse the scopes JSON array
-            ObjectMapper mapper = new ObjectMapper();
-            List<String> scopesList = mapper.readValue(scopes, new TypeReference<List<String>>() {});
-            
             String artistPageId = getArtistPageId(name, restTemplate);
             if (artistPageId == null) {
-                return ResponseEntity.ok(new JSONObject()
-                    .put("error", "Artist not found")
-                    .toString());
+                return ResponseEntity.ok(new JSONObject().put("error", "Artist not found").toString());
             }
 
             int[] lifespan = getArtistLifespan(artistPageId, restTemplate);
             if (lifespan == null) {
-                return ResponseEntity.ok(new JSONObject()
-                    .put("error", "Could not determine artist's lifespan")
-                    .toString());
+                return ResponseEntity.ok(new JSONObject().put("error", "Could not determine artist's lifespan").toString());
             }
             System.out.println("hello world: " +  lifespan[0] + " - " + lifespan[1]);
 
@@ -81,14 +71,12 @@ public class AppController {
                 JSONArray network = searchArtistNetwork(artistPageId, restTemplate);
                 result.put("events", network);
             }
-            result.put("events", allEvents);
 
             return ResponseEntity.ok(result.toString());
 
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new JSONObject()
-                .put("error", "Error searching artist: " + e.getMessage())
-                .toString());
+                .put("error", "Error searching artist: " + e.getMessage()).toString());
         }
     }
 
@@ -224,7 +212,7 @@ public class AppController {
     
         JSONArray searchResults = eventsData.getJSONObject("query").getJSONArray("search");
         
-        JSONArray filteredResults = new JSONArray();
+        JSONArray filteredEvents = new JSONArray();
         for (int i = 0; i < searchResults.length(); i++) {
             JSONObject event = searchResults.getJSONObject(i);
             if (isValidPoliticalEvent(event.getString("title"))) {
@@ -321,52 +309,105 @@ public class AppController {
         return filteredMovements;
     }
 
-    private String getPageContent(String pageId, RestTemplate restTemplate) throws Exception {
+    private JSONArray searchArtistNetwork(String pageId, RestTemplate restTemplate) throws Exception {
+        System.out.println("Searching artist network for pageId: " + pageId);
+        
+        String linksUrl = WIKI_API_URL + "?action=query&format=json&prop=links&pllimit=500&pageids=" + pageId;
+        String linksResponse = restTemplate.getForObject(linksUrl, String.class);
+        JSONObject pagesObj = new JSONObject(linksResponse)
+            .getJSONObject("query")
+            .getJSONObject("pages")
+            .getJSONObject(pageId);
+        
+        if (!pagesObj.has("links")) {
+            System.out.println("No links found for pageId: " + pageId);
+            return new JSONArray();
+        }
+        
+        JSONArray links = pagesObj.getJSONArray("links");
+        System.out.println("Found " + links.length() + " total links");
+        
         String contentUrl = WIKI_API_URL + "?action=query&format=json&prop=extracts&pageids=" + pageId + "&explaintext=1";
         String contentResponse = restTemplate.getForObject(contentUrl, String.class);
-        return new JSONObject(contentResponse)
+        String content = new JSONObject(contentResponse)
             .getJSONObject("query")
             .getJSONObject("pages")
             .getJSONObject(pageId)
             .getString("extract");
-    }
-
-    private boolean isRelevantResult(String content, String scope) {
-        if (content == null || content.isEmpty()) {
-            return false;
-        }
-
-        // Convert to lower case for case-insensitive matching
-        content = content.toLowerCase();
-        scope = scope.toLowerCase();
-
-        // Split scope into individual terms
-        String[] terms = scope.split("\\s+");
         
-        // Check if all terms appear in the content
-        for (String term : terms) {
-            if (!content.contains(term)) {
-                return false;
+        JSONArray artistNetwork = new JSONArray();
+        int processedLinks = 0;
+        
+        for (int i = 0; i < Math.min(links.length(), 50); i++) {
+            String linkedName = links.getJSONObject(i).getString("title");
+            
+            if (linkedName.contains(":") || linkedName.contains("movement") || 
+                linkedName.contains("style") || linkedName.contains("museum") ||
+                linkedName.contains("gallery") || linkedName.contains("art")) {
+                continue;
+            }
+            
+            // First, check if it's likely an artist page
+            String initialSearchUrl = WIKI_API_URL + "?action=query&format=json&list=search" +
+                             "&srsearch=intitle:\"" + URLEncoder.encode(linkedName, StandardCharsets.UTF_8) + 
+                             "\" \"painter\" \"artist\"";
+            
+            JSONObject initialResult = new JSONObject(restTemplate.getForObject(initialSearchUrl, String.class));
+            JSONArray initialResults = initialResult.getJSONObject("query").getJSONArray("search");
+            
+            if (initialResults.length() > 0) {
+                // Get the first result's content to verify it's an artist
+                JSONObject firstResult = initialResults.getJSONObject(0);
+                String pageContentUrl = WIKI_API_URL + "?action=query&format=json&prop=extracts&pageids=" + 
+                                      firstResult.getInt("pageid") + "&explaintext=1";
+                
+                String pageContent = restTemplate.getForObject(pageContentUrl, String.class);
+                String extract = new JSONObject(pageContent)
+                    .getJSONObject("query")
+                    .getJSONObject("pages")
+                    .getJSONObject(String.valueOf(firstResult.getInt("pageid")))
+                    .getString("extract")
+                    .toLowerCase();
+                
+                // Check if the page content suggests this is an artist
+                if ((extract.contains("painter") || extract.contains("artist") || 
+                     extract.contains("sculptor") || extract.contains("artistic")) &&
+                    !extract.contains("location") && !extract.contains("municipality")) {
+                    
+                    String context = findRelationshipContext(content, linkedName);
+                    if (context != null && !context.isEmpty()) {
+                        System.out.println("Found artist connection: " + linkedName);
+                        artistNetwork.put(new JSONObject()
+                            .put("title", linkedName)
+                            .put("url", "https://en.wikipedia.org/?curid=" + firstResult.getInt("pageid"))
+                            .put("snippet", context));
+                    }
+                }
+            }
+            
+            processedLinks++;
+            if (processedLinks % 10 == 0) {
+                System.out.println("Processed " + processedLinks + " links");
             }
         }
-
-        // Additional relevance checks can be added here
-        return true;
+        
+        System.out.println("Found " + artistNetwork.length() + " artist connections");
+        return artistNetwork;
     }
-
-    private String findRelationshipContext(String content, String searchTerm) {
-        if (content == null || searchTerm == null) return null;
+    
+    private String findRelationshipContext(String content, String artistName) {
+        if (content == null || artistName == null) return null;
         
         // Make case-insensitive
         String lowerContent = content.toLowerCase();
-        String lowerSearchTerm = searchTerm.toLowerCase();
+        String lowerArtistName = artistName.toLowerCase();
         
-        int termIndex = lowerContent.indexOf(lowerSearchTerm);
-        if (termIndex == -1) return null;
+        int nameIndex = lowerContent.indexOf(lowerArtistName);
+        if (nameIndex == -1) return null;
         
         // Expand context window and ensure proper sentence boundaries
-        int start = Math.max(0, termIndex - 150);
-        int end = Math.min(content.length(), termIndex + searchTerm.length() + 150);
+        int start = Math.max(0, nameIndex - 150);
+        int end = Math.min(content.length(), nameIndex + artistName.length() + 150);
         
         // Find sentence boundaries
         while (start > 0 && content.charAt(start) != '.') start--;

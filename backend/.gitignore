@@ -1,6 +1,6 @@
 /data
-/backend/target
-/backend/*.jar
-/backend/*.war
-/backend/.idea/
-/backend/.vscode/
+/target
+*.jar
+*.war
+.idea/
+.vscode/
