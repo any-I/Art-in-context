@@ -2,17 +2,15 @@ import React, { useState } from "react";
 import ReactMarkdown from 'react-markdown';
 
 import "./App.css";
+import { Chrono } from "react-chrono";  // for timeline visualization (can change to other library later)
 
 function App() {
   const [artistName, setArtistName] = useState("");
-  const [scope, setScope] = useState("political-events");
+  const [scope, setScope] = useState("political-events"); 
   const [artistUrl, setArtistUrl] = useState("");
-  const [events, setEvents] = useState([]);
-  const [error, setError] = useState("");
-  const [searchID, setSearchID] = useState("");
-  const [searchSummary, setSearchSummary] = useState("");
-  const [agentSearchResults, setAgentSearchResults] = useState("");
-
+  const [error, setError] = useState(null);
+  const [timelineData, setTimelineData] = useState([]); 
+ 
   const searchArtist = async () => {
     if (!artistName) {
       setError("Please enter an artist name");
@@ -23,6 +21,7 @@ function App() {
       const response = await fetch(
         `http://localhost:8080/api/artwork?name=${encodeURIComponent(artistName)}&scope=${scope}`
       );
+
       if (!response.ok) throw new Error("Error searching artist");
 
       const data = await response.json();
@@ -30,60 +29,57 @@ function App() {
       if (data.error) {
         setError(data.error);
         setArtistUrl("");
-        setEvents([]);
-        setSearchID("");
-      } else {
-        setArtistUrl(data.artistUrl);
-        setEvents(data.events || []);
         setError("");
-        setSearchID(data.searchID);
+      } 
+      
+      else {
+        setArtistUrl(data.artistUrl);
+        setError("");
       }
-      setSearchSummary("");
     } catch (err) {
       setError("Failed to search artist");
       setArtistUrl("");
-      setEvents([]);
-      setSearchID("");
-      setSearchSummary("");
-      setAgentSearchResults("");
     }
   };
 
-  const summarizeSearch = async () => {
-    try {
-      const response = await fetch(
-        `http://localhost:8080/api/summarize?searchID=${searchID}&artistName=${artistName}`
-      );
-      if (!response.ok) throw new Error("Error summarizing search results");
-
-      const data = await response.json();
-
-      if (data.error) {
-        setSearchSummary("");
-      } else {
-        setSearchSummary(data.summary);
-      }
-    } catch (err) {
-      setSearchSummary("");
-    }
-  }
-
   const agentSearch = async () => {
+    setTimelineData([]);
+    setError(null);
+
     try {
       const response = await fetch(
         `http://localhost:8080/api/agent?artistName=${artistName}&context=${scope}`
       );
-      if (!response.ok) throw new Error("Error summarizing search results");
+
+      if (!response.ok) throw new Error("Error performing AI search");
 
       const data = await response.json();
 
       if (data.error) {
-        setAgentSearchResults("");
-      } else {
-        setAgentSearchResults(data.events);
+        setError(data.error);
+        setTimelineData([]);
+      } 
+      
+      else {
+        const transformedData = (data.timelineEvents || []).map(event => ({
+          title: event.date, 
+          cardTitle: event.event_title,
+          cardDetailedText: event.detailed_summary + (event.source_url ? `\n\n[Source](${event.source_url})` : ""), 
+          
+          // images to show up in timeline where needed
+          media: event.artwork_image_url ? {
+            type: "IMAGE",
+            source: {
+              url: event.artwork_image_url
+            }
+          } : undefined
+        }));
+
+        setTimelineData(transformedData);
       }
     } catch (err) {
-      setAgentSearchResults("");
+      setError(err.message || "Failed to perform AI search");
+      setTimelineData([]);
     }
   }
 
@@ -125,30 +121,39 @@ function App() {
 
         <button onClick={searchArtist}>Search</button>
         <button onClick={agentSearch}>AI Search</button>
-
-        {artistUrl && <button onClick={summarizeSearch}>Summarize</button>}
       </div>
 
-      {error && <div className="error">{error}</div>}
+      {error && <div className="error-message">Error: {error}</div>}
 
-      {searchSummary && (
-        <div className="summary">
-          <h2>Summary</h2>
-          <div className="summary-text">
-            <p>{searchSummary}</p>
-          </div>
+      {/* timeline stuff */}
+      {timelineData && timelineData.length > 0 && (
+        <div className="timeline-container" style={{ width: '100%', height: '600px', marginTop: '20px', marginBottom: '20px' }}>
+          <h2>Timeline of {getListTitle()}</h2>
+          <Chrono
+            items={timelineData}
+            mode="VERTICAL" 
+            scrollable={{ scrollbar: true }} 
+            enableOutline
+            mediaHeight={500}  // TODO: don't know how to set this dynamically
+            theme={{ 
+              primary: 'rgb(33, 150, 243)',
+              secondary: 'white',
+              cardBgColor: 'rgb(240, 240, 240)',
+              cardForeColor: '#333',
+              titleColor: 'black',
+              titleColorActive: 'rgb(33, 150, 243)',
+            }}
+            fontSizes={{ 
+              cardText: '0.9rem',
+              cardTitle: '1rem',
+              title: '1rem',
+            }}
+            useReadMore={false} 
+          />
         </div>
       )}
 
-      {agentSearchResults && (
-        <div className="agentSearch">
-          <h2>AI Search Results</h2>
-          <div className="agent-search-text">
-          <ReactMarkdown>{agentSearchResults}</ReactMarkdown>
-          </div>
-        </div>
-      )}
-      
+      {/* idk what this does and if we need it */}
       {artistUrl && (
         <div className="result">
           <h2>Artist Information</h2>
@@ -159,22 +164,6 @@ function App() {
           >
             View Artist Details on Wikipedia
           </a>
-          
-          {events.length > 0 && (
-            <div className="events-list">
-              <h3>Related {getListTitle()}</h3>
-              {events.map((event, index) => (
-                <div key={index} className="event-item">
-                  <h4>
-                    <a href={event.url} target="_blank" rel="noopener noreferrer">
-                      {event.title}
-                    </a>
-                  </h4>
-                  <p dangerouslySetInnerHTML={{ __html: event.snippet }} />
-                </div>
-              ))}
-            </div>
-          )}
         </div>
       )}
     </div>
