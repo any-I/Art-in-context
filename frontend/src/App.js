@@ -8,6 +8,7 @@ function App() {
   const [artistUrl, setArtistUrl] = useState("");
   const [error, setError] = useState(null);
   const [timelineData, setTimelineData] = useState([]); 
+  const [activeTimelineScope, setActiveTimelineScope] = useState(null); // Added state for active timeline scope
  
   const searchArtist = async () => {
     if (!artistName) {
@@ -74,6 +75,7 @@ function App() {
         }));
 
         setTimelineData(transformedData);
+        setActiveTimelineScope(scope); // Update active scope on success
       }
     } catch (err) {
       setError(err.message || "Failed to perform AI search");
@@ -81,8 +83,8 @@ function App() {
     }
   }
 
-  const getListTitle = () => {
-    switch(scope) {
+  const getListTitle = (currentScope) => { // Modified to accept scope argument
+    switch(currentScope) {
       case 'political-events': return 'Political Events';
       case 'art-movements': return 'Art Movements';
       case 'artist-network': return 'Artist Network';
@@ -126,7 +128,7 @@ function App() {
       {/* timeline stuff */}
       {timelineData && timelineData.length > 0 && (
         <div className="timeline-container" style={{ width: '100%', height: '600px', marginTop: '20px', marginBottom: '20px' }}>
-          <h2>Timeline of {getListTitle()}</h2>
+          <h2>Timeline of {getListTitle(activeTimelineScope)}</h2> {/* Use activeTimelineScope */} 
           <Chrono
             items={timelineData}
             mode="VERTICAL" 
