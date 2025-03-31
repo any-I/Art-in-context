@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import ReactMarkdown from 'react-markdown';
+
 import "./App.css";
 
 function App() {
@@ -142,7 +144,7 @@ function App() {
         <div className="agentSearch">
           <h2>AI Search Results</h2>
           <div className="agent-search-text">
-            <p>{agentSearchResults}</p>
+          <ReactMarkdown>{agentSearchResults}</ReactMarkdown>
           </div>
         </div>
       )}

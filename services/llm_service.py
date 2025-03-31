@@ -28,7 +28,7 @@ openAIModel = OpenAIServerModel(
 ### Set up for AGENTS ###
 researcher_prompt = open("researcher_prompt.txt", "r", encoding="utf-8").read()
 historian_prompt = open("historian_prompt.txt", "r", encoding="utf-8").read()
-print(researcher_prompt)
+# print(researcher_prompt)
 
 SEARCH_CALL_LIMIT = 3  # Maximum number of searches per query
 class RateLimitedSearchTool(DuckDuckGoSearchTool):
