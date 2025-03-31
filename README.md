@@ -66,5 +66,7 @@ To use **OpenAI API** for the RAG microservices, create a `services/.env` file c
 ```
 OPENAI_API_KEY=<your_openai_api_key_here>
 PINECONE_KEY=<your_pinecone_api_key_here>
+GOOGLE_API_KEY=<your_google_api_key_here>
+GOOGLE_CSE_ID=<your_google_cse_id_here>
 ```
-Note: Copy of Pinecone & OpenAI key can be found in artmap email.
+Note: Copy of Pinecone, OpenAI, Google keys and Google CSE ID can be found in artmap email.
