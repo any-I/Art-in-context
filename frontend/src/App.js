@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import ReactMarkdown from 'react-markdown';
+
 import "./App.css";
 import { Chrono } from "react-chrono";  // for timeline visualization (can change to other library later)
 
