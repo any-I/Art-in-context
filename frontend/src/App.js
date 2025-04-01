@@ -133,7 +133,7 @@ function App() {
           <h2>Timeline of {getListTitle(activeTimelineScope)}</h2> {/* Use activeTimelineScope */} 
           <Chrono
             items={timelineData}
-            mode="VERTICAL" 
+            mode="HORIZONTAL" 
             scrollable={{ scrollbar: true }} 
             enableOutline
             mediaHeight={500}  // TODO: don't know how to set this dynamically
