@@ -147,9 +147,12 @@ def run_agents(request: AgentsRequest):
                                'date' in item and
                                'event_title' in item and
                                'detailed_summary' in item and
+                               'location_name' in item and
+                               'latitude' in item and isinstance(item['latitude'], (int, float)) and
+                               'longitude' in item and isinstance(item['longitude'], (int, float)) and
                                'source_url' in item for item in timeline_events):
                     print("Warning: Parsed JSON list items have incorrect structure.")
-                    error_message = "Error: AI response format incorrect (missing required fields in events)."
+                    error_message = "Error: AI response format incorrect (missing required fields or wrong types for location/coordinates in events)."
                     timeline_events = []
                 # if validation passes, timeline_events is good
 
