@@ -125,41 +125,65 @@ def run_agents(request: AgentsRequest):
         error_message = None # hold potential error messages for the 'error' field
         
         try:
-            json_part = historian_response.strip()
+            # Check if the response is already a list (parsed by the agent framework)
+            if isinstance(historian_response, list):
+                print("Historian response is already a list.")
+                timeline_events = historian_response # Use the list directly
+                # Still perform validation on the list structure
+                if not all(isinstance(item, dict) and
+                           'date' in item and
+                           'event_title' in item and
+                           'detailed_summary' in item and
+                           'location_name' in item and
+                           'latitude' in item and isinstance(item['latitude'], (int, float)) and
+                           'longitude' in item and isinstance(item['longitude'], (int, float)) and
+                           'source_url' in item for item in timeline_events):
+                    print("Warning: Pre-parsed list items have incorrect structure.")
+                    error_message = "Error: AI response format incorrect (missing required fields or wrong types in pre-parsed list)."
+                    timeline_events = []
+                    
+            # If it's a string, try to parse it as JSON
+            elif isinstance(historian_response, str):
+                print("Historian response is a string. Parsing JSON.")
+                json_part = historian_response.strip()
 
-            if json_part.startswith("```json"):
-                json_part = json_part[len("```json"):].strip()
-            
-            if json_part.endswith("```"):
-                json_part = json_part[:-len("```")].strip()
-
-            # attempt to parse the entire response as JSON
-            try:
-                timeline_events = json.loads(json_part)
+                if json_part.startswith("```json"):
+                    json_part = json_part[len("```json"):].strip()
                 
-                # validation: check if it's a list of dicts
-                if not isinstance(timeline_events, list):
-                    print("Warning: Parsed JSON is not a list.")
-                    error_message = "Error: AI response format incorrect (expected a list)."
-                    timeline_events = []
+                if json_part.endswith("```"):
+                    json_part = json_part[:-len("```")].strip()
 
-                elif not all(isinstance(item, dict) and
-                               'date' in item and
-                               'event_title' in item and
-                               'detailed_summary' in item and
-                               'location_name' in item and
-                               'latitude' in item and isinstance(item['latitude'], (int, float)) and
-                               'longitude' in item and isinstance(item['longitude'], (int, float)) and
-                               'source_url' in item for item in timeline_events):
-                    print("Warning: Parsed JSON list items have incorrect structure.")
-                    error_message = "Error: AI response format incorrect (missing required fields or wrong types for location/coordinates in events)."
-                    timeline_events = []
-                # if validation passes, timeline_events is good
+                try:
+                    timeline_events = json.loads(json_part)
+                    
+                    # Validation after parsing string
+                    if not isinstance(timeline_events, list):
+                        print("Warning: Parsed JSON is not a list.")
+                        error_message = "Error: AI response format incorrect (expected a list)."
+                        timeline_events = []
 
-            except json.JSONDecodeError as json_err:
-                print(f"Error decoding JSON: {json_err}")
-                print(f"Problematic JSON string: {json_part}")
-                error_message = "Error: Could not parse AI response as JSON."
+                    elif not all(isinstance(item, dict) and
+                                   'date' in item and
+                                   'event_title' in item and
+                                   'detailed_summary' in item and
+                                   'location_name' in item and
+                                   'latitude' in item and isinstance(item['latitude'], (int, float)) and
+                                   'longitude' in item and isinstance(item['longitude'], (int, float)) and
+                                   'source_url' in item for item in timeline_events):
+                        print("Warning: Parsed JSON list items have incorrect structure.")
+                        error_message = "Error: AI response format incorrect (missing required fields or wrong types for location/coordinates in events)."
+                        timeline_events = []
+
+                except json.JSONDecodeError as json_err:
+                    print(f"Error decoding JSON: {json_err}")
+                    print(f"Problematic JSON string: {json_part}")
+                    error_message = "Error: Could not parse AI response as JSON."
+                    timeline_events = []
+            
+            # Handle unexpected types
+            else:
+                print(f"Warning: Historian response is of unexpected type: {type(historian_response)}")
+                error_message = "Error: AI response was not in the expected format (string or list)."
                 timeline_events = []
 
         except Exception as e:
