@@ -4,6 +4,7 @@ import "./App.css";
 import { Chrono } from "react-chrono";
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import NetworkGraph from './NetworkGraph'; // Import NetworkGraph
 
 // Fix for default marker icon issue with Webpack
 import L from 'leaflet';
@@ -26,6 +27,7 @@ function App() {
   const [artistUrl, setArtistUrl] = useState("");
   const [error, setError] = useState(null);
   const [timelineData, setTimelineData] = useState([]); 
+  const [networkData, setNetworkData] = useState([]); // Add state for network data
   const [activeTimelineScope, setActiveTimelineScope] = useState(null); // Added state for active timeline scope
  
   const searchArtist = async () => {
@@ -61,7 +63,9 @@ function App() {
 
   const agentSearch = async () => {
     setTimelineData([]);
+    setNetworkData([]); // Clear network data on new search
     setError(null);
+    setActiveTimelineScope(''); // Clear active scope indicator
 
     try {
       const response = await fetch(
@@ -74,10 +78,13 @@ function App() {
 
       if (data.error) {
         setError(data.error);
-        setTimelineData([]);
+        // Ensure data arrays are cleared on error
+        setTimelineData([]); 
+        setNetworkData([]);
       } 
-      
-      else {
+      // --- Conditional Data Handling --- 
+      else if (scope === 'political-events' && data.timelineEvents) {
+        console.log("Received timelineEvents:", data.timelineEvents); 
         const transformedData = (data.timelineEvents || []).map(event => ({
           title: event.date, 
           cardTitle: event.event_title,
@@ -95,11 +102,30 @@ function App() {
         }));
 
         setTimelineData(transformedData);
+        setNetworkData([]); // Clear network data when timeline is loaded
         setActiveTimelineScope(scope); // Update active scope on success
       }
+      else if (scope === 'artist-network' && data.networkData) {
+        console.log("Received networkData:", data.networkData); 
+        // Assuming networkData is already in a usable format for the graph
+        // We might add transformation logic here later if needed
+        setNetworkData(data.networkData);
+        setTimelineData([]); // Clear timeline data when network is loaded
+        // We might need a separate state for active network scope later
+        // setActiveTimelineScope(''); // Or set a different state like setActiveVisualizationType('network')
+      }
+      else {
+        // Handle cases where data is missing for the expected scope
+        console.warn(`Data key ('${scope === 'political-events' ? 'timelineEvents' : 'networkData'}') not found in response for scope '${scope}'.`);
+        setError(`Received response, but no valid data found for the selected scope.`);
+        setTimelineData([]);
+        setNetworkData([]);
+      }
+      // ----------------------------------
     } catch (err) {
       setError(err.message || "Failed to perform AI search");
       setTimelineData([]);
+      setNetworkData([]); // Clear network data on fetch error too
     }
   }
 
@@ -202,6 +228,11 @@ function App() {
             </MapContainer>
           </div>
         </div>
+      )}
+
+      {/* Network visualization */}
+      {networkData && networkData.length > 0 && (
+        <NetworkGraph data={networkData} artistName={artistName} />
       )}
 
       {/* idk what this does and if we need it */}
