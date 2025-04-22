@@ -24,43 +24,11 @@ L.Icon.Default.mergeOptions({
 function App() {
   const [artistName, setArtistName] = useState("");
   const [scope, setScope] = useState("political-events"); 
-  const [artistUrl, setArtistUrl] = useState("");
   const [error, setError] = useState(null);
   const [timelineData, setTimelineData] = useState([]); 
   const [networkData, setNetworkData] = useState([]); // Add state for network data
   const [activeTimelineScope, setActiveTimelineScope] = useState(null); // Added state for active timeline scope
  
-  const searchArtist = async () => {
-    if (!artistName) {
-      setError("Please enter an artist name");
-      return;
-    }
-
-    try {
-      const response = await fetch(
-        `http://localhost:8080/api/artwork?name=${encodeURIComponent(artistName)}&scope=${scope}`
-      );
-
-      if (!response.ok) throw new Error("Error searching artist");
-
-      const data = await response.json();
-      
-      if (data.error) {
-        setError(data.error);
-        setArtistUrl("");
-        setError("");
-      } 
-      
-      else {
-        setArtistUrl(data.artistUrl);
-        setError("");
-      }
-    } catch (err) {
-      setError("Failed to search artist");
-      setArtistUrl("");
-    }
-  };
-
   const agentSearch = async () => {
     setTimelineData([]);
     setNetworkData([]); // Clear network data on new search
@@ -165,7 +133,6 @@ function App() {
           </select>
         </div>
 
-        <button onClick={searchArtist}>Search</button>
         <button onClick={agentSearch}>AI Search</button>
       </div>
 
@@ -233,20 +200,6 @@ function App() {
       {/* Network visualization */}
       {networkData && networkData.length > 0 && (
         <NetworkGraph data={networkData} artistName={artistName} />
-      )}
-
-      {/* idk what this does and if we need it */}
-      {artistUrl && (
-        <div className="result">
-          <h2>Artist Information</h2>
-          <a 
-            href={artistUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            View Artist Details on Wikipedia
-          </a>
-        </div>
       )}
     </div>
   );

@@ -172,6 +172,12 @@ def run_agents(request: AgentsRequest):
                 if json_part.endswith("```"):
                     json_part = json_part[:-len("```")].strip()
                 
+                # Attempt to fix common missing comma errors between JSON objects in a list
+                try:
+                    json_part = re.sub(r'}\s*\{', '}, {', json_part)
+                except Exception as regex_err:
+                    print(f"Warning: Regex correction failed: {regex_err}") # Log if regex fails, but proceed
+
                 try:
                     parsed_data = json.loads(json_part)
                     if not isinstance(parsed_data, list):
@@ -181,7 +187,7 @@ def run_agents(request: AgentsRequest):
                 except json.JSONDecodeError as json_err:
                     print(f"Error decoding JSON: {json_err}")
                     print(f"Problematic JSON string: {json_part}")
-                    error_message = "Error: Could not parse AI response as JSON."
+                    error_message = f"Error: Could not parse AI response as JSON. Details: {json_err}"
                     parsed_data = []
             else:
                 print(f"Warning: Historian response is of unexpected type: {type(historian_response_raw)}")
@@ -214,12 +220,13 @@ def run_agents(request: AgentsRequest):
                            'entity_type' in item and
                            'relationship_summary' in item and
                            'relationship_duration' in item and
+                           'connection_score' in item and isinstance(item['connection_score'], (int, float)) and # Added check for score
                            'source_url' in item for item in parsed_data):
                         network_data = parsed_data
                         print(f"Validated {len(network_data)} network connections.")
                     else:
-                        print("Warning: Parsed list items have incorrect network structure.")
-                        error_message = "Error: AI response format incorrect (missing required fields for network data)."
+                        print("Warning: Parsed list items have incorrect network structure (missing fields or wrong types).")
+                        error_message = "Error: AI response format incorrect (missing required fields or wrong types for network data, including connection_score)."
                         network_data = []
                 
                 else:
