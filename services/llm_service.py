@@ -94,6 +94,10 @@ class AgentsRequest(BaseModel):
 
 
 ### ENDPOINTS ###
+@app.get("/")
+async def health_check():
+    """Basic health check endpoint."""
+    return {"status": "ok", "message": "Art Context Engine API is running!"}
 
 @app.post("/summarize")
 def summarize_events(request: SummarizeRequest):
