@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+openai
+langchain
+langchain-openai
+requests
+beautifulsoup4
+pydantic
+wikipedia-api

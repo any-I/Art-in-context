@@ -28,12 +28,14 @@ function App() {
   const [timelineData, setTimelineData] = useState([]);
   const [networkData, setNetworkData] = useState([]); // Add state for network data
   const [activeTimelineScope, setActiveTimelineScope] = useState(null); // Track scope for timeline title
+  const [foundInfoMessage, setFoundInfoMessage] = useState('');
 
   const agentSearch = async () => {
     setTimelineData([]);
     setNetworkData([]); // Clear network data on new search
     setError(null);
     setActiveTimelineScope(''); // Clear active scope indicator
+    setFoundInfoMessage('');
 
     try {
       // Construct the request body
@@ -110,6 +112,15 @@ function App() {
         setTimelineData([]); // Clear timeline data when network is loaded
         // We might need a separate state for active network scope later
         // setActiveTimelineScope(''); // Or set a different state like setActiveVisualizationType('network')
+      } else if (scope === 'genre' || scope === 'medium') {
+        console.log("Received data for genre or medium:", data);
+        if (data.found_value) {
+          setFoundInfoMessage(`${artistName}'s ${scope} was found to be ${data.found_value}.`);
+        } else {
+          setError(`Could not determine the ${scope} for ${artistName}.`);
+        }
+        setTimelineData([]);
+        setNetworkData([]);
       } else {
         // Handle cases where data is missing for the expected scope
         console.warn(`Received response for scope '${scope}', but expected data field was missing or empty.`, data);
@@ -124,6 +135,7 @@ function App() {
       setTimelineData([]);
       setNetworkData([]); // Clear network data on fetch error too
       setActiveTimelineScope(''); // Clear scope on error
+      setFoundInfoMessage('');
     }
   }
 
@@ -132,6 +144,8 @@ function App() {
       case 'political-events': return 'Political Events';
       case 'art-movements': return 'Art Movements';
       case 'artist-network': return 'Artist Network';
+      case 'genre': return 'Genre';
+      case 'medium': return 'Medium';
       default: return 'Events'; // Fallback title
     }
   };
@@ -147,7 +161,7 @@ function App() {
             type="text"
             value={artistName}
             onChange={(e) => setArtistName(e.target.value)}
-            placeholder="e.g., Vincent van Gogh" // Example text
+            placeholder="e.g., Vincent van Gogh"
           />
         </div>
 
@@ -160,6 +174,8 @@ function App() {
             <option value="political-events">Political Events</option>
             <option value="art-movements">Art Movements</option>
             <option value="artist-network">Artist Network</option>
+            <option value="genre">Genre</option>
+            <option value="medium">Medium</option>
           </select>
         </div>
 
@@ -168,8 +184,10 @@ function App() {
 
       {error && <div className="error-message">Error: {error}</div>}
 
+      {foundInfoMessage && <div className="info-message">{foundInfoMessage}</div>}
+
       {/* timeline and map container */}
-      {timelineData && timelineData.length > 0 && (
+      {!foundInfoMessage && timelineData && timelineData.length > 0 && (
         <div className="results-container timeline-map-container"> {/* Added classes */}
           <div className="timeline-section"> {/* Wrapper for timeline */}
             <h2>Timeline of {getListTitle(activeTimelineScope)}</h2>
@@ -236,7 +254,7 @@ function App() {
       )}
 
       {/* Network visualization */}
-      {networkData && networkData.length > 0 && (
+      {!foundInfoMessage && networkData && networkData.length > 0 && (
          <div className="results-container network-graph-container"> {/* Added class */}
              {/* Keep existing NetworkGraph component */}
             <NetworkGraph data={networkData} artistName={artistName} />
