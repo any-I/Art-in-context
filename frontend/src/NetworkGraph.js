@@ -3,11 +3,10 @@ import * as d3 from 'd3';
 
 const NetworkGraph = ({ data, artistName }) => {
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
-  const [selectedNode, setSelectedNode] = useState(null); 
-  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 }); 
-  const svgRef = useRef(); 
-  const simulationRef = useRef(); 
-  const wasDraggedRef = useRef(false); // Ref to track drag state during zoom
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
+  const svgRef = useRef();
+  const simulationRef = useRef();
 
   useEffect(() => {
     if (!data || data.length === 0 || !artistName) {
@@ -63,26 +62,46 @@ const NetworkGraph = ({ data, artistName }) => {
     }
 
     // Create a wrapper group for zoom/pan
-    const g = svg.append("g"); 
+    const g = svg.append("g");
 
-    // --- Define scale for node radius ---
-    // Use power scale for more exaggeration
-    const radiusScale = d3.scalePow().exponent(2) 
+    // --- ADDED: Group for the connecting lines ---
+    const linkGroup = g.append("g")
+        .attr("class", "links")
+        .attr("stroke", "#999") // Style for the lines
+        .attr("stroke-opacity", 0.6)
+        .attr("stroke-width", 1.5);
+
+    // --- ADDED: Fixed node radii ---
+    const centralNodeRadius = 25; // Slightly larger radius for the main artist
+    const peripheralNodeRadius = 15; // Fixed radius for other nodes
+
+    // --- ADDED: Define scale for link distance based on connection score (inverted) ---
+    // Assuming connection_score ranges roughly 1-10. Adjust domain/range as needed.
+    // Higher score = shorter distance (stronger connection)
+    const distanceScale = d3.scaleLinear()
       .domain([1, 10]) // Expected range of connection_score
-      .range([4, 55]); // Corresponding radius size range (Quadratic scale, adjusted range)
-    
-    const centralNodeRadius = 60; // Fixed larger radius for the main artist (Increased)
+      .range([350, 40]); // MODIFIED: Increased range for more exaggeration
 
     // --- D3 Force Simulation Setup ---
     const simulation = d3.forceSimulation(graphData.nodes)
-      // .force("link", d3.forceLink(graphData.links).id(d => d.id).distance(100)) 
-      .force("charge", d3.forceManyBody().strength(-20)) // Gentle repulsion to spread out
+      // --- MODIFIED: Add forceLink based on connection score ---
+      .force("link", d3.forceLink(graphData.links)
+                      .id(d => d.id)
+                      .distance(l => distanceScale(l.target.details?.connection_score || 1)) // Use target node's score for distance
+                      .strength(0.5) // Adjust link strength as needed
+      )
+      .force("charge", d3.forceManyBody().strength(-150)) // Adjusted charge potentially needed with links
       .force("center", d3.forceCenter(width / 2, height / 2))
-      // Add collision force based on calculated radius + padding
-      .force("collide", d3.forceCollide().radius(d => (d.id === artistName ? centralNodeRadius : radiusScale(d.details?.connection_score || 1)) + 3)) // Use updated scale logic
+      // --- MODIFIED: Collision force based on fixed radii ---
+      .force("collide", d3.forceCollide().radius(d => (d.id === artistName ? centralNodeRadius : peripheralNodeRadius) + 5))
       .on("tick", ticked);
 
     simulationRef.current = simulation; 
+
+    // --- ADDED: Create line elements, binding data from non-central nodes ---
+    const lines = linkGroup.selectAll("line")
+      .data(graphData.nodes.filter(d => d.id !== artistName)) // Only nodes that are NOT the central one
+      .join("line");
 
     // Append node groups to the wrapper 'g', not 'svg'
     const nodeGroup = g.append("g") 
@@ -90,88 +109,46 @@ const NetworkGraph = ({ data, artistName }) => {
       .selectAll("g") 
       .data(graphData.nodes)
       .join("g") 
-      .call(drag(simulation)); 
+      ;
 
     nodeGroup.append("circle")
-      // Set radius based on score, with a fixed size for the central artist
-      .attr("r", d => d.id === artistName ? centralNodeRadius : radiusScale(d.details?.connection_score || 1)) // Use updated scale logic
+      // --- MODIFIED: Set radius based on fixed sizes ---
+      .attr("r", d => d.id === artistName ? centralNodeRadius : peripheralNodeRadius)
       .attr("fill", d => d.color || 'grey')
       .on("click", (event, d) => {
-        const [x, y] = d3.pointer(event, svgRef.current); 
-        setPopupPosition({ x, y }); 
+        const [x, y] = d3.pointer(event, svgRef.current.parentElement); // Use parent for positioning if g is transformed
+        setPopupPosition({ x, y });
         handleNodeClick(d); // Trigger popup on click
-        event.stopPropagation(); 
+        event.stopPropagation();
       });
 
     nodeGroup.append("text")
       .text(d => d.name)
       .attr("x", 0) // Center text horizontally in the group
-      // Position text below the circle using the dynamic radius
-      .attr("y", d => (d.id === artistName ? centralNodeRadius : radiusScale(d.details?.connection_score || 1)) + 10) // Use updated scale logic
+      // --- MODIFIED: Position text below the circle using fixed radii ---
+      .attr("y", d => (d.id === artistName ? centralNodeRadius : peripheralNodeRadius) + 10)
       .attr("text-anchor", "middle") // Center text
       .attr("font-size", "10px")
       .attr("fill", "black");
 
     // --- Tick Function (updates positions) ---
     function ticked() {
+      // --- ADDED: Find central node --- 
+      const centralNode = graphData.nodes.find(n => n.id === artistName);
+
       // Apply node positions
       nodeGroup
-        .attr("transform", d => `translate(${d.x},${d.y})`); 
+        .attr("transform", d => `translate(${d.x},${d.y})`);
+
+      // --- ADDED: Update line positions --- 
+      if (centralNode) { // Ensure central node exists
+        lines
+          .attr("x1", centralNode.x)
+          .attr("y1", centralNode.y)
+          .attr("x2", d => d.x)
+          .attr("y2", d => d.y);
+      }
     }
-
-    // --- Drag Handling (for individual nodes) ---
-    function drag(simulation) {
-      function dragstarted(event, d) {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
-      }
-
-      function dragged(event, d) {
-        d.fx = event.x;
-        d.fy = event.y;
-      }
-
-      function dragended(event, d) {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
-      }
-
-      return d3.drag()
-        .on("start", dragstarted)
-        .on("drag", dragged)
-        .on("end", dragended);
-    }
-
-    // --- Zoom Handling (for panning/zooming the whole view) ---
-    const zoomed = (event) => {
-      // Only apply transform if zoom/pan actually happened
-      if (event.sourceEvent && (event.sourceEvent.type === 'mousemove' || event.sourceEvent.type === 'touchmove' || event.sourceEvent.type === 'wheel')) {
-        wasDraggedRef.current = true; // Mark as dragged if zooming/panning
-        g.attr("transform", event.transform);
-      } else if (event.transform) {
-        // Handle initial transform or programmatic zoom if needed, might still mark as dragged
-        // wasDraggedRef.current = true;
-        g.attr("transform", event.transform);
-      }
-    };
-
-    const zoom = d3.zoom()
-      .scaleExtent([0.1, 8]) // Set zoom limits
-      .on("start", () => {
-        wasDraggedRef.current = false; // Reset drag flag on interaction start
-      })
-      .on("zoom", zoomed) // Use the modified zoomed function
-      .on("end", (event) => {
-        // Close popup only if it was a click (no drag) on the background
-        if (!wasDraggedRef.current && event.sourceEvent && event.sourceEvent.target === svgRef.current) {
-          closePopup();
-        }
-      });
-
-    // Apply zoom behavior to the SVG element
-    svg.call(zoom);
 
     return () => {
       simulation.stop(); 
@@ -199,7 +176,8 @@ const NetworkGraph = ({ data, artistName }) => {
     maxHeight: '80vh', 
     overflowY: 'auto', 
     zIndex: 1000, 
-    boxShadow: '0 2px 10px rgba(0,0,0,0.2)'
+    boxShadow: '0 2px 10px rgba(0,0,0,0.2)',
+    pointerEvents: 'auto' 
   };
 
   return (
@@ -221,6 +199,7 @@ const NetworkGraph = ({ data, artistName }) => {
           ) : (
              <p>This is the main artist.</p>
           )}
+          <button onClick={closePopup} style={{ marginTop: '10px', padding: '5px 10px', cursor: 'pointer' }}>Close</button>
         </div>
       )}
     </div>
