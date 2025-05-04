@@ -50,6 +50,33 @@ except FileNotFoundError:
     researcher_network_prompt = None # Set to None or a default fallback prompt
     historian_network_prompt = None
 
+# Load art movement prompts (Added from memory, ensure files exist)
+try:
+    researcher_art_movements_prompt = open("researcher_art_movements_prompt.txt", "r", encoding="utf-8").read()
+    historian_art_movements_prompt = open("historian_art_movements_prompt.txt", "r", encoding="utf-8").read()
+except FileNotFoundError:
+    print("Warning: Art movement prompt files not found. Art movement scope may not function correctly.")
+    researcher_art_movements_prompt = None
+    historian_art_movements_prompt = None
+
+# Load personal event prompts (NEW)
+try:
+    researcher_personal_events_prompt = open("researcher_personal_events_prompt.txt", "r", encoding="utf-8").read()
+    historian_personal_events_prompt = open("historian_personal_events_prompt.txt", "r", encoding="utf-8").read()
+except FileNotFoundError:
+    print("Warning: Personal event prompt files not found. Personal event scope may not function correctly.")
+    researcher_personal_events_prompt = None
+    historian_personal_events_prompt = None
+
+# Load economic event prompts (NEW)
+try:
+    researcher_economic_events_prompt = open("researcher_economic_events_prompt.txt", "r", encoding="utf-8").read()
+    historian_economic_events_prompt = open("historian_economic_events_prompt.txt", "r", encoding="utf-8").read()
+except FileNotFoundError:
+    print("Warning: Economic event prompt files not found. Economic event scope may not function correctly.")
+    researcher_economic_events_prompt = None
+    historian_economic_events_prompt = None
+
 SEARCH_CALL_LIMIT = 3  # Maximum number of searches per query
 class RateLimitedSearchTool(DuckDuckGoSearchTool):
     def __init__(self):
@@ -130,18 +157,26 @@ def run_agents(request: AgentsRequest):
         rate_limited_search_tool.reset()
 
         # --- Conditional Prompt Assignment ---
-        if scope == 'artist-network' and researcher_network_prompt and historian_network_prompt:
-            print("Using NETWORK prompts")
+        if scope == 'political-events':
+            print("Using POLITICAL/HISTORICAL prompts")
+            researcher_agent.prompt_templates["system_prompt"] = researcher_prompt
+            historian_agent.prompt_templates["system_prompt"] = historian_prompt
+        elif scope == 'art-movements' and researcher_art_movements_prompt and historian_art_movements_prompt:
+            print("Using ART MOVEMENTS prompts")
+            researcher_agent.prompt_templates["system_prompt"] = researcher_art_movements_prompt
+            historian_agent.prompt_templates["system_prompt"] = historian_art_movements_prompt
+        elif scope == 'personal-events' and researcher_personal_events_prompt and historian_personal_events_prompt: 
+            print("Using PERSONAL EVENTS prompts")
+            researcher_agent.prompt_templates["system_prompt"] = researcher_personal_events_prompt
+            historian_agent.prompt_templates["system_prompt"] = historian_personal_events_prompt
+        elif scope == 'economic-events' and researcher_economic_events_prompt and historian_economic_events_prompt: 
+            print("Using ECONOMIC EVENTS prompts")
+            researcher_agent.prompt_templates["system_prompt"] = researcher_economic_events_prompt
+            historian_agent.prompt_templates["system_prompt"] = historian_economic_events_prompt
+        elif scope == 'artist-network' and researcher_network_prompt and historian_network_prompt:
+            print("Using ARTIST NETWORK prompts")
             researcher_agent.prompt_templates["system_prompt"] = researcher_network_prompt
             historian_agent.prompt_templates["system_prompt"] = historian_network_prompt
-        elif scope == 'political-events': # Or other timeline-based scopes
-            print("Using POLITICAL/HISTORICAL prompts")
-            researcher_agent.prompt_templates["system_prompt"] = researcher_prompt
-            historian_agent.prompt_templates["system_prompt"] = historian_prompt
-        elif scope == 'art-movements': # Or other timeline-based scopes
-            print("Using POLITICAL/HISTORICAL prompts")
-            researcher_agent.prompt_templates["system_prompt"] = researcher_prompt
-            historian_agent.prompt_templates["system_prompt"] = historian_prompt
         else:
             # Handle other scopes or fallback if network prompts are missing
             print(f"Warning: Scope '{scope}' not explicitly handled or network prompts missing. Using default political/historical prompts.")
@@ -198,8 +233,8 @@ def run_agents(request: AgentsRequest):
             # === SCOPE-SPECIFIC VALIDATION AND DATA EXTRACTION ===
             # Reverted: Validate structure within the parsed_data list for timeline scopes
             if not error_message: # Only validate if parsing was successful
-                if scope == 'political-events' or scope == 'art-movements':
-                    # Validate common timeline structure for both scopes
+                if scope in ['political-events', 'art-movements', 'personal-events', 'economic-events']: 
+                    # Validate common timeline structure for all timeline scopes
                     if isinstance(parsed_data, list) and all(isinstance(item, dict) and
                            'date' in item and
                            'event_title' in item and
@@ -305,16 +340,11 @@ def run_agents(request: AgentsRequest):
 
             # --- CONSTRUCT FINAL RESPONSE --- 
             response_data = {}
-            if scope == 'political-events':
+            if scope in ['political-events', 'art-movements', 'personal-events', 'economic-events']: 
                 response_data = {"timelineEvents": timeline_events}
                 # Add warning if validation failed but we still proceed (e.g., if fallback logic existed)
                 # For now, if error_message is set, timeline_events should be empty, 
                 # but we can add the message just in case.
-                if error_message:
-                    response_data["error"] = error_message 
-
-            elif scope == 'art-movements': 
-                response_data = {"timelineEvents": timeline_events}
                 if error_message:
                     response_data["error"] = error_message 
 

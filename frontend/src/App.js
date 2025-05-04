@@ -52,7 +52,7 @@ function App() {
       } 
       // --- Conditional Data Handling --- 
       else if (scope === 'political-events' && data.timelineEvents) {
-        console.log("Received timelineEvents:", data.timelineEvents); 
+        console.log("Received timelineEvents for Political Events:", data.timelineEvents); 
         const transformedData = (data.timelineEvents || []).map(event => ({
           title: event.date, 
           cardTitle: event.event_title,
@@ -107,7 +107,51 @@ function App() {
         // setActiveTimelineScope(''); // Or set a different state like setActiveVisualizationType('network')
       }
 
-      else if (scope === 'personal-events') {}
+      else if (scope === 'personal-events' && data.timelineEvents) {
+        console.log("Received timelineEvents for Personal Events:", data.timelineEvents); 
+        const transformedData = (data.timelineEvents || []).map(event => ({
+          title: event.date, 
+          cardTitle: event.event_title,
+          cardDetailedText: event.detailed_summary + (event.source_url ? `\n\n[Source](${event.source_url})` : ""), 
+          
+          // images to show up in timeline where needed
+          media: event.artwork_image_url ? {
+            type: "IMAGE",
+            source: {
+              url: event.artwork_image_url
+            }
+          } : undefined,
+          latitude: event.latitude,
+          longitude: event.longitude
+        }));
+
+        setTimelineData(transformedData);
+        setNetworkData([]); // Clear network data when timeline is loaded
+        setActiveTimelineScope(scope); // Update active scope on success
+      }
+
+      else if (scope === 'economic-events' && data.timelineEvents) {
+        console.log("Received timelineEvents for Economic Events:", data.timelineEvents); 
+        const transformedData = (data.timelineEvents || []).map(event => ({
+          title: event.date, 
+          cardTitle: event.event_title,
+          cardDetailedText: event.detailed_summary + (event.source_url ? `\n\n[Source](${event.source_url})` : ""), 
+          
+          // images to show up in timeline where needed
+          media: event.artwork_image_url ? {
+            type: "IMAGE",
+            source: {
+              url: event.artwork_image_url
+            }
+          } : undefined,
+          latitude: event.latitude,
+          longitude: event.longitude
+        }));
+
+        setTimelineData(transformedData);
+        setNetworkData([]); // Clear network data when timeline is loaded
+        setActiveTimelineScope(scope); // Update active scope on success
+      }
 
       else {
         // Handle cases where data is missing for the expected scope
@@ -129,7 +173,9 @@ function App() {
       case 'political-events': return 'Political Events';
       case 'art-movements': return 'Art Movements';
       case 'artist-network': return 'Artist Network';
-      default: return 'Events';
+      case 'personal-events': return 'Personal Life Events'; 
+      case 'economic-events': return 'Economic Context'; 
+      default: return 'Events'; // Keep a default
     }
   };
 

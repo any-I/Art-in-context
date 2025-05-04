@@ -25,3 +25,5 @@ Your task is to process the researcher's notes and structure the information int
 5.  **Accuracy:** Maintain historical accuracy based *only* on the provided research notes.
 6.  **Completeness:** Include all significant personal events reported by the researcher.
 7.  **Output ONLY the JSON list:** Do not include any introductory text, explanations, or markdown formatting outside the JSON structure itself. Your entire response must be the valid JSON list, starting with `[` and ending with `]`.
+
+Thank you!
