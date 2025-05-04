@@ -40,7 +40,8 @@ const NetworkGraph = ({ data, artistName }) => {
         source: artistName, 
         target: targetId, 
         relationship: connection.relationship_summary,
-        duration: connection.relationship_duration
+        duration: connection.relationship_duration,
+        score: connection.connection_score || 1 // Store score, default to 1 if missing
       });
     });
 
@@ -73,16 +74,33 @@ const NetworkGraph = ({ data, artistName }) => {
     
     const centralNodeRadius = 60; // Fixed larger radius for the main artist (Increased)
 
+    // --- Define scale for link distance based on score --- 
+    // Higher score = shorter distance
+    const linkDistanceScale = d3.scaleLinear()
+      .domain([1, 10]) // Expected range of connection_score
+      .range([200, 50]); // Corresponding distance range (inverted)
+
     // --- D3 Force Simulation Setup ---
     const simulation = d3.forceSimulation(graphData.nodes)
-      // .force("link", d3.forceLink(graphData.links).id(d => d.id).distance(100)) 
-      .force("charge", d3.forceManyBody().strength(-20)) // Gentle repulsion to spread out
+      // Use the link data and distance scale
+      .force("link", d3.forceLink(graphData.links).id(d => d.id).distance(link => linkDistanceScale(link.score || 1)))
+      .force("charge", d3.forceManyBody().strength(-30)) // Slightly weaker repulsion 
       .force("center", d3.forceCenter(width / 2, height / 2))
       // Add collision force based on calculated radius + padding
       .force("collide", d3.forceCollide().radius(d => (d.id === artistName ? centralNodeRadius : radiusScale(d.details?.connection_score || 1)) + 3)) // Use updated scale logic
       .on("tick", ticked);
 
     simulationRef.current = simulation; 
+
+    // Append links (lines) to the wrapper 'g'
+    const linkGroup = g.append("g")
+        .attr("class", "links")
+        .attr("stroke", "#999") // Default link color
+        .attr("stroke-opacity", 0.6)
+      .selectAll("line")
+      .data(graphData.links)
+      .join("line")
+        .attr("stroke-width", 1.5); // Default link width
 
     // Append node groups to the wrapper 'g', not 'svg'
     const nodeGroup = g.append("g") 
@@ -114,6 +132,13 @@ const NetworkGraph = ({ data, artistName }) => {
 
     // --- Tick Function (updates positions) ---
     function ticked() {
+      // Update link positions
+      linkGroup
+          .attr("x1", d => d.source.x)
+          .attr("y1", d => d.source.y)
+          .attr("x2", d => d.target.x)
+          .attr("y2", d => d.target.y);
+
       // Apply node positions
       nodeGroup
         .attr("transform", d => `translate(${d.x},${d.y})`); 

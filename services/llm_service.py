@@ -138,6 +138,10 @@ def run_agents(request: AgentsRequest):
             print("Using POLITICAL/HISTORICAL prompts")
             researcher_agent.prompt_templates["system_prompt"] = researcher_prompt
             historian_agent.prompt_templates["system_prompt"] = historian_prompt
+        elif scope == 'art-movements': # Or other timeline-based scopes
+            print("Using POLITICAL/HISTORICAL prompts")
+            researcher_agent.prompt_templates["system_prompt"] = researcher_prompt
+            historian_agent.prompt_templates["system_prompt"] = historian_prompt
         else:
             # Handle other scopes or fallback if network prompts are missing
             print(f"Warning: Scope '{scope}' not explicitly handled or network prompts missing. Using default political/historical prompts.")
@@ -152,13 +156,10 @@ def run_agents(request: AgentsRequest):
         print("------ HISTORIAN ------")
         print(historian_response_raw)
 
-        # --- Conditional Parsing & Response --- 
+        # --- Parse Historian Response ---
+        error_message = None
         timeline_events = []
         network_data = []
-        parsed_data = [] # Temporary holder for parsed list
-        error_message = None
-        response_data = {} # Initialize response dict
-        
         try:
             # Attempt to parse the raw response (expecting string or list)
             if isinstance(historian_response_raw, list):
@@ -194,129 +195,147 @@ def run_agents(request: AgentsRequest):
                 error_message = "Error: AI response was not in the expected format (string or list)."
                 parsed_data = []
 
-            # --- Validate based on scope ---
-            if not error_message: # Only validate if parsing seemed okay
-                if scope == 'political-events':
-                    # Validate timeline structure
-                    if all(isinstance(item, dict) and
+            # === SCOPE-SPECIFIC VALIDATION AND DATA EXTRACTION ===
+            # Reverted: Validate structure within the parsed_data list for timeline scopes
+            if not error_message: # Only validate if parsing was successful
+                if scope == 'political-events' or scope == 'art-movements':
+                    # Validate common timeline structure for both scopes
+                    if isinstance(parsed_data, list) and all(isinstance(item, dict) and
                            'date' in item and
                            'event_title' in item and
                            'detailed_summary' in item and
                            'location_name' in item and
-                           'latitude' in item and isinstance(item['latitude'], (int, float, type(None))) and # Allow None for lat/lon
-                           'longitude' in item and isinstance(item['longitude'], (int, float, type(None))) and # Allow None for lat/lon
+                           'latitude' in item and isinstance(item['latitude'], (int, float, type(None))) and # Allow None
+                           'longitude' in item and isinstance(item['longitude'], (int, float, type(None))) and # Allow None
                            'source_url' in item for item in parsed_data):
-                        timeline_events = parsed_data
-                        print(f"Validated {len(timeline_events)} timeline events.")
+                        timeline_events = parsed_data # Assign validated list
+                        print(f"Validated {len(timeline_events)} timeline events for scope '{scope}'.")
                     else:
-                        print("Warning: Parsed list items have incorrect timeline structure.")
-                        error_message = "Error: AI response format incorrect (missing required fields or wrong types for timeline events)."
-                        timeline_events = []
-                
+                        print(f"Warning: Parsed list items have incorrect timeline structure for scope '{scope}'.")
+                        error_message = f"Error: AI response format incorrect for scope '{scope}' (missing required fields or wrong types)."
+                        timeline_events = [] # Ensure empty on validation failure
+
                 elif scope == 'artist-network':
-                    # Validate network structure
-                    if all(isinstance(item, dict) and
+                    # Validate network structure (ensure connection_score check remains if needed)
+                    if isinstance(parsed_data, list) and all(isinstance(item, dict) and
                            'connected_entity_name' in item and
                            'entity_type' in item and
                            'relationship_summary' in item and
                            'relationship_duration' in item and
-                           'connection_score' in item and isinstance(item['connection_score'], (int, float)) and # Added check for score
+                           'connection_score' in item and isinstance(item['connection_score'], (int, float)) and
                            'source_url' in item for item in parsed_data):
                         network_data = parsed_data
                         print(f"Validated {len(network_data)} network connections.")
                     else:
-                        print("Warning: Parsed list items have incorrect network structure (missing fields or wrong types).")
-                        error_message = "Error: AI response format incorrect (missing required fields or wrong types for network data, including connection_score)."
-                        network_data = []
-                
+                        print("Warning: Parsed list items have incorrect network structure.")
+                        error_message = "Error: AI response format incorrect for network data (missing fields or wrong types)."
+                        network_data = [] # Ensure empty on validation failure
                 else:
-                    # Handle unknown scopes - maybe treat as error or default?
-                    print(f"Warning: Validation not defined for scope '{scope}'. No data will be returned.")
-                    error_message = f"Error: Unknown scope '{scope}' received for validation."
+                     # Handle unknown scopes
+                    print(f"Warning: Validation not defined for scope '{scope}'.")
+                    # Keep error_message as None or set a specific one if needed
+                    # error_message = f"Error: Unknown scope '{scope}' received for validation."
+                    # Ensure data lists remain empty
+                    timeline_events = []
+                    network_data = []
+            # ---------------------------------------------------------------
+
+            # --- Image Search for Timeline Events (if any extracted) ---
+            # Refactored: Moved outside scope-specific block to apply to any timeline scope
+            if timeline_events: # Check if timeline_events list is populated
+                print(f"Checking {len(timeline_events)} timeline events for artwork images...")
+                artwork_pattern = re.compile(r'\*\*(.*?)\*\*') # pattern to find **Artwork Title**
+                
+                def get_artwork_image(artwork_title):
+                    # google API key config check
+                    if not GOOGLE_API_KEY or not GOOGLE_CSE_ID:
+                        print("Google API Key/CSE ID not configured, skipping image search.")
+                        return None 
+
+                    print(f"Searching for image: {artwork_title}") 
+
+                    try:
+                        search_url = "https://www.googleapis.com/customsearch/v1"
+                        params = {
+                            'key': GOOGLE_API_KEY,
+                            'cx': GOOGLE_CSE_ID,
+                            'q': artwork_title + " artwork painting", # context for query
+                            'searchType': 'image',
+                            'num': 1 # just get the top result
+                        }
+
+                        response = requests.get(search_url, params=params, timeout=10) # timeout
+                        response.raise_for_status() # raise an exception for bad status codes
+
+                        data = response.json()
+
+                        # check if 'items' exist and has at least one image result
+                        if 'items' in data and len(data['items']) > 0:
+                            image_url = data['items'][0].get('link')
+                            
+                            # check that image url is valid
+                            if image_url:
+                                print(f"Found image URL: {image_url}")
+                                return image_url
+                            else:
+                                print(f"No image link found in the first item for: {artwork_title}")
+                        else:
+                            print(f"No image items found for: {artwork_title}")
+
+                    except requests.exceptions.RequestException as e:
+                        print(f"Error fetching image for '{artwork_title}': {e}")
+                    except Exception as e:
+                        print(f"An unexpected error occurred during image search: {e}")
+
+                    return None # return None if search fails or no image found
+
+                for event in timeline_events:
+                    summary = event.get('detailed_summary', '')
+                    # print(f"Checking summary for artwork: {summary[:100]}...") # Optional: reduce verbosity
+                    match = artwork_pattern.search(summary)
+                    
+                    if match:
+                        print(f"Artwork pattern matched in summary!") 
+                        artwork_title = match.group(1).strip()
+                        image_url = get_artwork_image(artwork_title)
+                        event['artwork_image_url'] = image_url # Add key if found
+                    else:
+                        event['artwork_image_url'] = None # Ensure the key exists even if no artwork found
+            # --------------------------------------------------------------
+
+            # --- CONSTRUCT FINAL RESPONSE --- 
+            response_data = {}
+            if scope == 'political-events':
+                response_data = {"timelineEvents": timeline_events}
+                # Add warning if validation failed but we still proceed (e.g., if fallback logic existed)
+                # For now, if error_message is set, timeline_events should be empty, 
+                # but we can add the message just in case.
+                if error_message:
+                    response_data["error"] = error_message 
+
+            elif scope == 'art-movements': 
+                response_data = {"timelineEvents": timeline_events}
+                if error_message:
+                    response_data["error"] = error_message 
+
+            elif scope == 'artist-network':
+                response_data = {"networkData": network_data}
+            else:
+                # Fallback for unhandled scopes
+                response_data = {"error": error_message if error_message else f"Unhandled scope: {scope}"} 
+
+            print(f"Final response data keys: {list(response_data.keys())}")
+            return response_data
 
         except Exception as e:
             print(f"Error processing historian response: {e}")
-            error_message = f"Error processing AI response: {e}"
-            timeline_events = [] # Ensure lists are empty on error
-            network_data = []
-
-        # --- Construct final response --- 
-        if scope == 'political-events':
-            response_data = {"timelineEvents": timeline_events}
-            if error_message:
-                response_data["error"] = error_message
-            
-            # --- Conditional Image Search (Only for Political Events) --- 
-            print(f"Checking {len(timeline_events)} timeline events for artwork images...")
-            artwork_pattern = re.compile(r'\*\*(.*?)\*\*') # pattern to find **Artwork Title**
-            
-            def get_artwork_image(artwork_title):
-                # google API key config check
-                if not GOOGLE_API_KEY or not GOOGLE_CSE_ID:
-                    print("Google API Key/CSE ID not configured, skipping image search.")
-                    return None 
-
-                print(f"Searching for image: {artwork_title}") 
-
-                try:
-                    search_url = "https://www.googleapis.com/customsearch/v1"
-                    params = {
-                        'key': GOOGLE_API_KEY,
-                        'cx': GOOGLE_CSE_ID,
-                        'q': artwork_title + " artwork painting", # context for query
-                        'searchType': 'image',
-                        'num': 1 # just get the top result
-                    }
-
-                    response = requests.get(search_url, params=params, timeout=10) # timeout
-                    response.raise_for_status() # raise an exception for bad status codes
-
-                    data = response.json()
-
-                    # check if 'items' exist and has at least one image result
-                    if 'items' in data and len(data['items']) > 0:
-                        image_url = data['items'][0].get('link')
-                        
-                        # check that image url is valid
-                        if image_url:
-                            print(f"Found image URL: {image_url}")
-                            return image_url
-                        else:
-                            print(f"No image link found in the first item for: {artwork_title}")
-                    else:
-                        print(f"No image items found for: {artwork_title}")
-
-                except requests.exceptions.RequestException as e:
-                    print(f"Error fetching image for '{artwork_title}': {e}")
-                except Exception as e:
-                    print(f"An unexpected error occurred during image search: {e}")
-
-                return None # return None if search fails or no image found
-
-            for event in timeline_events:
-                summary = event.get('detailed_summary', '')
-                # print(f"Checking summary for artwork: {summary[:100]}...") # Optional: reduce verbosity
-                match = artwork_pattern.search(summary)
-                
-                if match:
-                    print(f"Artwork pattern matched in summary!") 
-                    artwork_title = match.group(1).strip()
-                    image_url = get_artwork_image(artwork_title)
-                    event['artwork_image_url'] = image_url # Add key if found
-                else:
-                    event['artwork_image_url'] = None # Ensure the key exists even if no artwork found
-            # --------------------------------------------------------------
-
-        elif scope == 'artist-network':
-            response_data = {"networkData": network_data}
-            if error_message:
-                response_data["error"] = error_message
-        else:
-            # Fallback for unhandled scopes
-            response_data = {"error": error_message if error_message else f"Unhandled scope: {scope}"} 
-
-        print(f"Final response data keys: {list(response_data.keys())}")
-        return response_data
+            # return error structure, ensuring keys match potential frontend expectation even on error
+            error_resp = {"error": f"Error processing AI response: {e}"}
+            if scope == 'artist-network':
+                error_resp["networkData"] = []
+            else: # Default or political-events
+                error_resp["timelineEvents"] = []
+            return error_resp
 
     except HTTPException as http_err:
         # Re-raise HTTP exceptions to be handled by FastAPI

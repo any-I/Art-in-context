@@ -73,6 +73,30 @@ function App() {
         setNetworkData([]); // Clear network data when timeline is loaded
         setActiveTimelineScope(scope); // Update active scope on success
       }
+
+      else if (scope === 'art-movements' && data.timelineEvents) { 
+        console.log("Received timelineEvents for Art Movements:", data.timelineEvents);
+        const transformedData = (data.timelineEvents || []).map(event => ({
+          title: event.date, 
+          cardTitle: event.event_title,
+          cardDetailedText: event.detailed_summary + (event.source_url ? `\n\n[Source](${event.source_url})` : ""), 
+          
+          // images to show up in timeline where needed
+          media: event.artwork_image_url ? {
+            type: "IMAGE",
+            source: {
+              url: event.artwork_image_url
+            }
+          } : undefined,
+          latitude: event.latitude,
+          longitude: event.longitude
+        }));
+
+        setTimelineData(transformedData);
+        setNetworkData([]); // Clear network data
+        setActiveTimelineScope(scope); // Update active scope
+      }
+
       else if (scope === 'artist-network' && data.networkData) {
         console.log("Received networkData:", data.networkData); 
         // Assuming networkData is already in a usable format for the graph
@@ -82,6 +106,9 @@ function App() {
         // We might need a separate state for active network scope later
         // setActiveTimelineScope(''); // Or set a different state like setActiveVisualizationType('network')
       }
+
+      else if (scope === 'personal-events') {}
+
       else {
         // Handle cases where data is missing for the expected scope
         console.warn(`Data key ('${scope === 'political-events' ? 'timelineEvents' : 'networkData'}') not found in response for scope '${scope}'.`);
@@ -130,6 +157,10 @@ function App() {
             <option value="political-events">Political Events</option>
             <option value="art-movements">Art Movements</option>
             <option value="artist-network">Artist Network</option>
+            <option value="personal-events">Personal Events</option>
+            <option value="economic-events">Economic Events</option>
+            <option value="artist-genre">Artist Genre</option>
+            <option value="artist-medium">Artist Medium</option>
           </select>
         </div>
 
