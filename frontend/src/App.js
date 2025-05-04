@@ -232,12 +232,8 @@ function App() {
 
       else if (scope === 'artist-network' && data.networkData) {
         console.log("Received networkData:", data.networkData); 
-        // Assuming networkData is already in a usable format for the graph
-        // We might add transformation logic here later if needed
         setNetworkData(data.networkData);
         setTimelineData([]); // Clear timeline data when network is loaded
-        // We might need a separate state for active network scope later
-        // setActiveTimelineScope(''); // Or set a different state like setActiveVisualizationType('network')
       }
 
       else if (scope === 'personal-events' && data.timelineEvents) {
