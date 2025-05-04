@@ -63,6 +63,13 @@ const NetworkGraph = ({ data, artistName }) => {
       simulationRef.current.stop();
     }
 
+    // --- Fix central node position ---
+    const centralNode = graphData.nodes.find(node => node.id === artistName);
+    if (centralNode) {
+      centralNode.fx = width / 2;
+      centralNode.fy = height / 2;
+    }
+
     // Create a wrapper group for zoom/pan
     const g = svg.append("g"); 
 
@@ -78,7 +85,7 @@ const NetworkGraph = ({ data, artistName }) => {
     // Higher score = shorter distance
     const linkDistanceScale = d3.scaleLinear()
       .domain([1, 10]) // Expected range of connection_score
-      .range([200, 50]); // Corresponding distance range (inverted)
+      .range([400, 40]); // Corresponding distance range (inverted, increased range for exaggeration)
 
     // --- D3 Force Simulation Setup ---
     const simulation = d3.forceSimulation(graphData.nodes)
@@ -147,20 +154,29 @@ const NetworkGraph = ({ data, artistName }) => {
     // --- Drag Handling (for individual nodes) ---
     function drag(simulation) {
       function dragstarted(event, d) {
-        if (!event.active) simulation.alphaTarget(0.3).restart();
-        d.fx = d.x;
-        d.fy = d.y;
+        // Only activate simulation and set fx/fy if it's NOT the central node
+        if (d.id !== artistName) {
+          if (!event.active) simulation.alphaTarget(0.3).restart();
+          d.fx = d.x;
+          d.fy = d.y;
+        }
       }
 
       function dragged(event, d) {
-        d.fx = event.x;
-        d.fy = event.y;
+        // Only update fx/fy if it's NOT the central node
+        if (d.id !== artistName) {
+          d.fx = event.x;
+          d.fy = event.y;
+        }
       }
 
       function dragended(event, d) {
-        if (!event.active) simulation.alphaTarget(0);
-        d.fx = null;
-        d.fy = null;
+        // Only deactivate simulation and clear fx/fy if it's NOT the central node
+        if (d.id !== artistName) {
+          if (!event.active) simulation.alphaTarget(0);
+          d.fx = null;
+          d.fy = null;
+        }
       }
 
       return d3.drag()

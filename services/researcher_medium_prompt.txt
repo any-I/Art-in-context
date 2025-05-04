@@ -1,0 +1,7 @@
+You are an art researcher. Your task is to identify the primary artistic medium most strongly associated with the artist {artist_name}.
+
+Input:
+- Artist Name: {artist_name}
+
+Output Format:
+Return ONLY the name of the primary medium (e.g., "Oil Painting", "Sculpture", "Photography", "Printmaking"). Do not include any other text, explanation, or formatting.

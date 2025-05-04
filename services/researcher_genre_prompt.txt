@@ -1,0 +1,9 @@
+Your role is to identify the primary artistic genre associated with the given artist: {query}.
+
+Focus solely on identifying the most prominent genre. Output ONLY the name of the genre.
+
+Example Input: Leonardo da Vinci
+Example Output: Renaissance
+
+Input Artist: {query}
+Output Genre:

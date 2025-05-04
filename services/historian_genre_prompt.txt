@@ -1,0 +1,31 @@
+You are an art historian specializing in the {genre} genre. Your task is to provide key timeline events relevant to the history and development of this genre, including geographical locations for each event.
+
+Input:
+- Genre: {genre}
+- Time Period (Optional): {time_period}
+
+Output Format:
+Return ONLY a JSON list of objects, where each object represents a significant event in the history of the {genre} genre. Each object MUST have the following keys:
+*   `date`: The year or specific date of the event (YYYY or YYYY-MM-DD format).
+*   `event_title`: A concise title for the event (e.g., "Publication of Surrealist Manifesto").
+*   `detailed_summary`: A slightly more detailed description of the event's significance.
+*   `location_name`: The city and country associated with the event (e.g., "Paris, France").
+*   `latitude`: The approximate latitude of the location (float or null).
+*   `longitude`: The approximate longitude of the location (float or null).
+*   `source_url`: A URL source for the information, if available (string or null).
+
+Focus on major milestones, influential figures, key exhibitions, publications, or historical context directly impacting the {genre} genre. If a time period is provided, focus events within or closely related to that period. Ensure the output is a valid JSON list and strictly follows the specified keys for each event object.
+
+Example for Genre: Surrealism
+
+```json
+[
+  { "date": "1924", "event_title": "Surrealist Manifesto Published", "detailed_summary": "André Breton publishes the first Surrealist Manifesto, defining the movement's aims and philosophy based on automatism and dreams.", "location_name": "Paris, France", "latitude": 48.8566, "longitude": 2.3522, "source_url": "https://example.com/manifesto" },
+  { "date": "1938", "event_title": "International Surrealist Exhibition", "detailed_summary": "A major exhibition held in Paris showcasing works by artists like Dalí, Ernst, Miró, solidifying Surrealism internationally.", "location_name": "Paris, France", "latitude": 48.8566, "longitude": 2.3522, "source_url": null },
+  { "date": "1929", "event_title": "Dalí Joins Surrealists", "detailed_summary": "Salvador Dalí officially joins the Surrealist group in Paris, bringing his unique 'paranoiac-critical' method.", "location_name": "Paris, France", "latitude": 48.8566, "longitude": 2.3522, "source_url": "https://example.com/dali" }
+]
+```
+
+---
+
+Generate the JSON list output for the genre: {genre} {time_period_context}

@@ -77,6 +77,38 @@ except FileNotFoundError:
     researcher_economic_events_prompt = None
     historian_economic_events_prompt = None
 
+# Load genre prompts (NEW)
+try:
+    researcher_genre_prompt = open("researcher_genre_prompt.txt", "r", encoding="utf-8").read()
+    historian_genre_prompt = open("historian_genre_prompt.txt", "r", encoding="utf-8").read()
+except FileNotFoundError:
+    print("Warning: Genre prompt files not found. Genre scope may not function correctly.")
+    researcher_genre_prompt = None
+    historian_genre_prompt = None
+
+# Load medium prompts (NEW)
+try:
+    researcher_medium_prompt = open("researcher_medium_prompt.txt", "r", encoding="utf-8").read()
+    historian_medium_prompt = open("historian_medium_prompt.txt", "r", encoding="utf-8").read()
+except FileNotFoundError:
+    print("Warning: Medium prompt files not found. Medium scope may not function correctly.")
+    researcher_medium_prompt = None
+    historian_medium_prompt = None
+
+# Load genre prompt
+try:
+    genre_finder_prompt = open("genre_finder_prompt.txt", "r", encoding="utf-8").read()
+except FileNotFoundError:
+    print("Warning: Genre prompt file not found. Genre scope may not function correctly.")
+    genre_finder_prompt = None
+
+# Load medium prompt (New)
+try:
+    medium_finder_prompt = open("medium_finder_prompt.txt", "r", encoding="utf-8").read()
+except FileNotFoundError:
+    print("Warning: Medium prompt file not found. Medium scope may not function correctly.")
+    medium_finder_prompt = None
+
 SEARCH_CALL_LIMIT = 3  # Maximum number of searches per query
 class RateLimitedSearchTool(DuckDuckGoSearchTool):
     def __init__(self):
@@ -177,6 +209,58 @@ def run_agents(request: AgentsRequest):
             print("Using ARTIST NETWORK prompts")
             researcher_agent.prompt_templates["system_prompt"] = researcher_network_prompt
             historian_agent.prompt_templates["system_prompt"] = historian_network_prompt
+        elif scope == 'genre' and researcher_genre_prompt and historian_genre_prompt:
+            print("Using GENRE prompts")
+            researcher_agent.prompt_templates["system_prompt"] = researcher_genre_prompt
+            historian_agent.prompt_templates["system_prompt"] = historian_genre_prompt
+        elif scope == 'Genre' and genre_finder_prompt:
+            print("Using GENRE prompts")
+            try:
+                # Format the simple prompt
+                formatted_prompt = genre_finder_prompt.format(query=request.artistName)
+
+                # Direct call to LLM
+                completion = openAIClient.chat.completions.create(
+                    model="gpt-4-turbo", # Or your preferred model
+                    messages=[
+                        {"role": "system", "content": "You are an art historian assistant.", "content": "Respond with ONLY the primary genre name."}, # System prompt reinforcement
+                        {"role": "user", "content": formatted_prompt}
+                    ],
+                    temperature=0.1 # Low temperature for factual recall
+                )
+                genre_result = completion.choices[0].message.content.strip()
+                print(f"Genre result from LLM: {genre_result}")
+                # Return the specific simple format
+                return {"genre": genre_result}
+            except Exception as e:
+                print(f"Error during direct LLM call for scope '{scope}': {e}")
+                return {"error": f"Failed to retrieve genre for {request.artistName}"}
+
+        # Direct LLM call for Medium (New)
+        elif scope == 'artist-medium' and medium_finder_prompt: 
+            print("Using MEDIUM prompt for direct LLM call")
+            try:
+                formatted_prompt = medium_finder_prompt.format(query=request.artistName)
+                completion = openAIClient.chat.completions.create(
+                    model="gpt-4", # Or your preferred fast model
+                    messages=[
+                        {"role": "system", "content": "You are an art historian assistant. Respond with ONLY the primary, specific artistic medium (e.g., 'oil paints', 'bronze sculpture')."},
+                        {"role": "user", "content": formatted_prompt}
+                    ],
+                    temperature=0.1
+                )
+                medium_result = completion.choices[0].message.content.strip()
+                print(f"Medium result from LLM: {medium_result}")
+                return {"medium": medium_result} 
+            except Exception as e:
+                print(f"Error during direct LLM call for scope '{scope}': {e}")
+                return {"error": f"Failed to retrieve medium for {request.artistName}"}
+
+        elif scope == 'medium' and researcher_medium_prompt and historian_medium_prompt:
+            print("Using MEDIUM prompts")
+            researcher_agent.prompt_templates["system_prompt"] = researcher_medium_prompt
+            historian_agent.prompt_templates["system_prompt"] = historian_medium_prompt
+
         else:
             # Handle other scopes or fallback if network prompts are missing
             print(f"Warning: Scope '{scope}' not explicitly handled or network prompts missing. Using default political/historical prompts.")
@@ -216,24 +300,29 @@ def run_agents(request: AgentsRequest):
 
                 try:
                     parsed_data = json.loads(json_part)
-                    if not isinstance(parsed_data, list):
-                         print("Warning: Parsed JSON is not a list.")
-                         error_message = "Error: AI response format incorrect (expected a list)."
-                         parsed_data = [] # Reset if not a list
                 except json.JSONDecodeError as json_err:
                     print(f"Error decoding JSON: {json_err}")
                     print(f"Problematic JSON string: {json_part}")
-                    error_message = f"Error: Could not parse AI response as JSON. Details: {json_err}"
-                    parsed_data = []
+                    error_message = f"Error: AI response was not valid JSON: {json_err}"
+                    parsed_data = [] # Ensure empty list on JSON error
             else:
                 print(f"Warning: Historian response is of unexpected type: {type(historian_response_raw)}")
                 error_message = "Error: AI response was not in the expected format (string or list)."
                 parsed_data = []
 
+            # === Handle potential extra list wrapping by LLM for timeline scopes ===
+            if not error_message and scope in ['political-events', 'art-movements', 'personal-events', 'economic-events', 'genre', 'medium']:
+                if isinstance(parsed_data, list) and len(parsed_data) > 0 and isinstance(parsed_data[0], list):
+                    print("Warning: Detected nested list structure, extracting inner list.")
+                    parsed_data = parsed_data[0] # Use the inner list
+                elif not isinstance(parsed_data, list):
+                     # If it's not a list at all after parsing, log a warning.
+                     # The main validation will catch this and set an error message.
+                     print(f"Warning: Parsed data for timeline scope '{scope}' is not a list.")
+
             # === SCOPE-SPECIFIC VALIDATION AND DATA EXTRACTION ===
-            # Reverted: Validate structure within the parsed_data list for timeline scopes
             if not error_message: # Only validate if parsing was successful
-                if scope in ['political-events', 'art-movements', 'personal-events', 'economic-events']: 
+                if scope in ['political-events', 'art-movements', 'personal-events', 'economic-events', 'genre', 'medium']: 
                     # Validate common timeline structure for all timeline scopes
                     if isinstance(parsed_data, list) and all(isinstance(item, dict) and
                            'date' in item and
@@ -340,14 +429,10 @@ def run_agents(request: AgentsRequest):
 
             # --- CONSTRUCT FINAL RESPONSE --- 
             response_data = {}
-            if scope in ['political-events', 'art-movements', 'personal-events', 'economic-events']: 
+            if scope in ['political-events', 'art-movements', 'personal-events', 'economic-events', 'genre', 'medium']: 
                 response_data = {"timelineEvents": timeline_events}
-                # Add warning if validation failed but we still proceed (e.g., if fallback logic existed)
-                # For now, if error_message is set, timeline_events should be empty, 
-                # but we can add the message just in case.
                 if error_message:
                     response_data["error"] = error_message 
-
             elif scope == 'artist-network':
                 response_data = {"networkData": network_data}
             else:

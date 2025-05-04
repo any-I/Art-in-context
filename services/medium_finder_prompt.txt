@@ -1,0 +1,1 @@
+Given the artist name '{query}', identify their primary artistic medium. Be specific (e.g., 'oil paints', 'watercolor', 'bronze sculpture', 'etching' rather than just 'painting' or 'sculpture'). Respond with ONLY the name of the medium and nothing else. For example, if the artist is Claude Monet, respond with 'oil paints'.
