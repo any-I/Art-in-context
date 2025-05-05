@@ -441,67 +441,70 @@ function App() {
       )}
 
       {/* timeline stuff */}
-      {timelineData && timelineData.length > 0 && (
-        <div className="timeline-container" style={{ width: '100%', height: 'auto', marginTop: '20px', marginBottom: '20px', display: 'flex', flexDirection: 'column', gap: '20px' }}> 
-          <div> 
-            <h2 style={{ textAlign: 'center' }}>Timeline</h2>
-            <div style={{ width: '100%', height: '400px' }}> 
-              <Chrono
-                items={timelineData.map(item => ({ ...item, title: item.title || 'Date Missing' }))}
-                mode="HORIZONTAL"
-                scrollable={{ scrollbar: true }}
-                enableOutline
-                theme={{
-                  primary: 'rgb(33, 150, 243)',
-                  secondary: 'white',
-                  cardBgColor: 'rgb(240, 240, 240)',
-                  cardForeColor: '#333',
-                  titleColor: 'black',
-                  titleColorActive: 'rgb(33, 150, 243)',
-                }}
-                fontSizes={{
-                  cardText: '0.9rem',
-                  cardTitle: '1rem',
-                  title: '1rem',
-                }}
-                useReadMore={false}
-              />
-            </div>
-          </div>
-          
-          <div> 
-            <h2 style={{ textAlign: 'center' }}>Map</h2>
-            <MapContainer 
-              center={[20, 0]} 
-              zoom={2} 
-              scrollWheelZoom={true} 
-              style={{ height: '400px', width: '100%' }} 
-              worldCopyJump={false} 
-              maxBounds={[[-90, -180], [90, 180]]} 
-            >
-              <TileLayer
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              {mapMarkers
-                .filter(item => item.latitude != null && item.longitude != null) 
-                .map((item) => ( // Use item.key instead of index
-                  <Marker key={item.key} position={[item.latitude, item.longitude]}>
-                    <Popup>
-                      <b>{item.cardTitle || 'Event'}</b><br />
-                      {item.title || 'Date Missing'} <br /> 
-                      {item.cardDetailedText.split('\n')[0]} 
-                    </Popup>
-                  </Marker>
-                ))}
-            </MapContainer>
+      {timelineData.length > 0 && (
+        <div style={{ width: '100%', height: '90vh', padding: '10px', overflowY: 'auto' }}> 
+          <h2 style={{ textAlign: 'center' }}>{getListTitle(activeTimelineScope)}</h2>
+          <div style={{ width: '100%', height: 'calc(100% - 40px)' }}> 
+            <Chrono
+              items={timelineData.map(item => ({ ...item, title: item.title || 'Date Missing' }))}
+              mode="HORIZONTAL"
+              scrollable={{ scrollbar: true }}
+              enableOutline
+              theme={{
+                primary: 'rgb(33, 150, 243)',
+                secondary: 'white',
+                cardBgColor: 'rgb(240, 240, 240)',
+                cardForeColor: '#333',
+                titleColor: 'black',
+                titleColorActive: 'rgb(33, 150, 243)',
+              }}
+              fontSizes={{
+                cardText: '0.9rem',
+                cardTitle: '1rem',
+                title: '1rem',
+              }}
+              useReadMore={false}
+            />
           </div>
         </div>
       )}
 
+      {timelineData.length > 0 && (
+        <div> 
+          <h2 style={{ textAlign: 'center' }}>Map</h2>
+          <MapContainer 
+            center={[20, 0]} 
+            zoom={2} 
+            scrollWheelZoom={true} 
+            style={{ height: '400px', width: '100%' }} 
+            worldCopyJump={false} 
+            maxBounds={[[-90, -180], [90, 180]]} 
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            {mapMarkers
+              .filter(item => item.latitude != null && item.longitude != null) 
+              .map((item) => ( // Use item.key instead of index
+                <Marker key={item.key} position={[item.latitude, item.longitude]}>
+                  <Popup>
+                    <b>{item.cardTitle || 'Event'}</b><br />
+                    {item.title || 'Date Missing'} <br /> 
+                    {item.cardDetailedText.split('\n')[0]} 
+                  </Popup>
+                </Marker>
+              ))}
+          </MapContainer>
+        </div>
+      )}
+
       {/* Network visualization */}
-      {networkData && networkData.length > 0 && (
-        <NetworkGraph data={networkData} artistName={artistName} />
+      {networkData.length > 0 && (
+        <div style={{ width: '100%', height: '80vh' }}> 
+          <h2>Artist Network</h2>
+          <NetworkGraph data={networkData} artistName={artistName} />
+        </div>
       )}
     </div>
   );
