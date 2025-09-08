@@ -57,10 +57,10 @@ curl -X POST "http://localhost:5001/summarize" \
          }'
 
 ### Data Folder
-Download data folder from artmap drive as serivces/data/*.jsonl
+Download data folder from artmap drive as services/data/*.jsonl
 
 ### API Keys
-API keys should not be hardcoded into the source code for security reasons.
+API keys should not be hardcoded into the source code for security reasons
 
 To use **OpenAI API** for the RAG microservices, create a `services/.env` file containing:
 ```
