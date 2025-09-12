@@ -5,7 +5,7 @@ import openai
 import json
 from pydantic import BaseModel
 from huggingface_hub import login
-from smolagents import CodeAgent, DuckDuckGoSearchTool, HfApiModel, ToolCallingAgent, OpenAIServerModel, PythonInterpreterTool
+from smolagents import CodeAgent, DuckDuckGoSearchTool, ToolCallingAgent, OpenAIServerModel, PythonInterpreterTool
 # for images:
 import re 
 import requests
@@ -42,59 +42,51 @@ historian_prompt = open("historian_prompt.txt", "r", encoding="utf-8").read()
 #print(researcher_prompt)
 
 # Load network prompts
-try:
-    researcher_network_prompt = open("researcher_network_prompt.txt", "r", encoding="utf-8").read()
-    historian_network_prompt = open("historian_network_prompt.txt", "r", encoding="utf-8").read()
-except FileNotFoundError:
-    print("Warning: Network prompt files not found. Artist network scope may not function correctly.")
-    researcher_network_prompt = None # Set to None or a default fallback prompt
-    historian_network_prompt = None
+# Mapping each scope (as requested via calls to the API) to:
+#   a) the prompt file name (prefixed with researcher_/historian_ and postfixed with _prompt.txt)
+#      corresponding to the scope, and
+#   b) the human-readable version of the scope to be printed in error messages, logging messages, etc.
+scope_info = {
+    "artist-network": {
+        "prompt": "network",
+        "name": "Artist network"
+    },
+    "art-movements": {
+        "prompt": "art_movements",
+        "name": "Art movement"
+    },
+    "personal-events": {
+        "prompt": "personal_events",
+        "name": "Personal event"
+    },
+    "economic-events": {
+        "prompt": "economic_events",
+        "name": "Economic event"
+    },
+    "genre": {
+        "prompt": "genre",
+        "name": "Genre"
+    },
+    "medium": {
+        "prompt": "medium",
+        "name": "Medium"
+    }
+}
+researcher_prompt_files = {}
+historian_prompt_files = {}
+for scope, prompt_info in scope_info.items():
+    try:
+        researcher_file_name = "researcher_" + prompt_info["prompt"] + "_prompt.txt"
+        historian_file_name = "historian_" + prompt_info["prompt"] + "_prompt.txt"
+        researcher_prompt_files[scope] = open(researcher_file_name, "r", encoding="utf-8").read()
+        historian_prompt_files[scope] = open(historian_file_name, "r", encoding="utf-8").read()
+    except FileNotFoundError:
+        prompt_name = prompt_info["name"]
+        print("Warning: " + prompt_name + " prompt files not found. " + prompt_name + " scope may not function correctly.")
+        researcher_prompt_files[scope] = None # Set to None or a default fallback prompt
+        historian_prompt_files[scope] = None
 
-# Load art movement prompts (Added from memory, ensure files exist)
-try:
-    researcher_art_movements_prompt = open("researcher_art_movements_prompt.txt", "r", encoding="utf-8").read()
-    historian_art_movements_prompt = open("historian_art_movements_prompt.txt", "r", encoding="utf-8").read()
-except FileNotFoundError:
-    print("Warning: Art movement prompt files not found. Art movement scope may not function correctly.")
-    researcher_art_movements_prompt = None
-    historian_art_movements_prompt = None
-
-# Load personal event prompts (NEW)
-try:
-    researcher_personal_events_prompt = open("researcher_personal_events_prompt.txt", "r", encoding="utf-8").read()
-    historian_personal_events_prompt = open("historian_personal_events_prompt.txt", "r", encoding="utf-8").read()
-except FileNotFoundError:
-    print("Warning: Personal event prompt files not found. Personal event scope may not function correctly.")
-    researcher_personal_events_prompt = None
-    historian_personal_events_prompt = None
-
-# Load economic event prompts (NEW)
-try:
-    researcher_economic_events_prompt = open("researcher_economic_events_prompt.txt", "r", encoding="utf-8").read()
-    historian_economic_events_prompt = open("historian_economic_events_prompt.txt", "r", encoding="utf-8").read()
-except FileNotFoundError:
-    print("Warning: Economic event prompt files not found. Economic event scope may not function correctly.")
-    researcher_economic_events_prompt = None
-    historian_economic_events_prompt = None
-
-# Load genre prompts (NEW)
-try:
-    researcher_genre_prompt = open("researcher_genre_prompt.txt", "r", encoding="utf-8").read()
-    historian_genre_prompt = open("historian_genre_prompt.txt", "r", encoding="utf-8").read()
-except FileNotFoundError:
-    print("Warning: Genre prompt files not found. Genre scope may not function correctly.")
-    researcher_genre_prompt = None
-    historian_genre_prompt = None
-
-# Load medium prompts (NEW)
-try:
-    researcher_medium_prompt = open("researcher_medium_prompt.txt", "r", encoding="utf-8").read()
-    historian_medium_prompt = open("historian_medium_prompt.txt", "r", encoding="utf-8").read()
-except FileNotFoundError:
-    print("Warning: Medium prompt files not found. Medium scope may not function correctly.")
-    researcher_medium_prompt = None
-    historian_medium_prompt = None
-
+# Additional, standalone prompts to use when calling LLM directly, not using Huggingface agents
 # Load genre prompt
 try:
     genre_finder_prompt = open("genre_finder_prompt.txt", "r", encoding="utf-8").read()
@@ -172,7 +164,6 @@ def summarize_events(request: SummarizeRequest):
     except Exception as e:
         return {"summary": "Error generating summary."}
 
-
 @app.post("/agent")
 def run_agents(request: AgentsRequest):
     print(AgentsRequest)
@@ -193,26 +184,12 @@ def run_agents(request: AgentsRequest):
             print("Using POLITICAL/HISTORICAL prompts")
             researcher_agent.prompt_templates["system_prompt"] = researcher_prompt
             historian_agent.prompt_templates["system_prompt"] = historian_prompt
-        elif scope == 'art-movements' and researcher_art_movements_prompt and historian_art_movements_prompt:
-            print("Using ART MOVEMENTS prompts")
-            researcher_agent.prompt_templates["system_prompt"] = researcher_art_movements_prompt
-            historian_agent.prompt_templates["system_prompt"] = historian_art_movements_prompt
-        elif scope == 'personal-events' and researcher_personal_events_prompt and historian_personal_events_prompt: 
-            print("Using PERSONAL EVENTS prompts")
-            researcher_agent.prompt_templates["system_prompt"] = researcher_personal_events_prompt
-            historian_agent.prompt_templates["system_prompt"] = historian_personal_events_prompt
-        elif scope == 'economic-events' and researcher_economic_events_prompt and historian_economic_events_prompt: 
-            print("Using ECONOMIC EVENTS prompts")
-            researcher_agent.prompt_templates["system_prompt"] = researcher_economic_events_prompt
-            historian_agent.prompt_templates["system_prompt"] = historian_economic_events_prompt
-        elif scope == 'artist-network' and researcher_network_prompt and historian_network_prompt:
-            print("Using ARTIST NETWORK prompts")
-            researcher_agent.prompt_templates["system_prompt"] = researcher_network_prompt
-            historian_agent.prompt_templates["system_prompt"] = historian_network_prompt
-        elif scope == 'genre' and researcher_genre_prompt and historian_genre_prompt:
-            print("Using GENRE prompts")
-            researcher_agent.prompt_templates["system_prompt"] = researcher_genre_prompt
-            historian_agent.prompt_templates["system_prompt"] = historian_genre_prompt
+        elif scope in scope_info and researcher_prompt_files[scope] and historian_prompt_files[scope]:
+            print("Using " + scope_info[scope]["name"].upper() + " prompts")
+            researcher_agent.prompt_templates["system_prompt"] = researcher_prompt_files[scope]
+            historian_agent.prompt_templates["system_prompt"] = historian_prompt_files[scope]
+        
+        # Direct LLM call for Genre
         elif scope == 'Genre' and genre_finder_prompt:
             print("Using GENRE prompts")
             try:
@@ -255,11 +232,6 @@ def run_agents(request: AgentsRequest):
             except Exception as e:
                 print(f"Error during direct LLM call for scope '{scope}': {e}")
                 return {"error": f"Failed to retrieve medium for {request.artistName}"}
-
-        elif scope == 'medium' and researcher_medium_prompt and historian_medium_prompt:
-            print("Using MEDIUM prompts")
-            researcher_agent.prompt_templates["system_prompt"] = researcher_medium_prompt
-            historian_agent.prompt_templates["system_prompt"] = historian_medium_prompt
 
         else:
             # Handle other scopes or fallback if network prompts are missing
