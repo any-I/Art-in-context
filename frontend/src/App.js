@@ -36,6 +36,8 @@ function App() {
   const [mapMarkers, setMapMarkers] = useState([]); // State for processed map markers
   const [genreResult, setGenreResult] = useState(''); // New state for Genre scope
   const timerRef = useRef(null); // Ref to store timer interval ID
+  const [artworkTitleOn, setArtworkTitleOn] = useState(false); // State for artwork search activated
+  const [artworkTitle, setArtworkTitle] = useState(""); // State for artwork search input
  
   // Cleanup timer on component unmount
   useEffect(() => {
@@ -391,24 +393,50 @@ function App() {
 
   return (
     <div className="app-container">
-      <h1 style={{ textAlign: 'center'}}>Art Historical Context Engine with AI</h1>
-      
+      <h1 className="bold text-xl" style={{ textAlign: 'center'}}>Art Historical Context Engine with AI</h1>
+
       <div className="search-form">
         <div className="form-group">
           <label>Artist Name</label>
           <input
-            type="text"
-            value={artistName}
-            onChange={(e) => setArtistName(e.target.value)}
-            placeholder="e.g. Vincent van Gogh"
+              type="text"
+              value={artistName}
+              onChange={(e) => setArtistName(e.target.value)}
+              placeholder="e.g. Vincent van Gogh"
           />
         </div>
-        
+
+        <button
+            className="bg-transparent hover:bg-gray-100 transition-colors text-black border border-gray-700 rounded"
+            onClick={() => {setArtworkTitleOn(!artworkTitleOn); setArtworkTitle("");}}>
+          {artworkTitleOn ? (
+              <>
+              <span className="text-red-500">✖</span> Remove Artwork Title
+          </>
+            ) : (
+              <>
+                  <span className="text-green-500 font-extrabold text-xl">+</span> Add Artwork Title
+              </>
+          )}
+        </button>
+
+        {artworkTitleOn && (
+            <div className="form-group">
+              <label>Artwork Title</label>
+              <input
+                  type="text"
+                  value={artworkTitle}
+                  onChange={(e) => setArtworkTitle(e.target.value)}
+                  placeholder="e.g. Mona Lisa"
+              />
+            </div>
+        )}
+
         <div className="form-group">
           <label>Search Scope</label>
           <select
-            value={scope}
-            onChange={(e) => setScope(e.target.value)}
+              value={scope}
+              onChange={(e) => setScope(e.target.value)}
           >
             <option value="artist-network">Artist Network (Graph)</option>
             <option value="political-events">Political Events (Timeline, Map)</option>
@@ -425,9 +453,9 @@ function App() {
 
       {/* Loading Indicator */}
       {isLoading && (
-        <div style={{ textAlign: 'center', marginTop: '10px', color: '#555' }}>
-          Loading... ({loadingTime}s elapsed)
-        </div>
+          <div style={{textAlign: 'center', marginTop: '10px', color: '#555'}}>
+            Loading... ({loadingTime}s elapsed)
+          </div>
       )}
 
       {error && <div className="error-message">Error: {error}</div>}
