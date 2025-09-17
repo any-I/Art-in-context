@@ -123,15 +123,94 @@ rate_limited_search_tool = RateLimitedSearchTool()
 researcher_agent = ToolCallingAgent(
     tools=[rate_limited_search_tool, PythonInterpreterTool()],
     model=openAIModel,
+    max_steps=5
 )
 researcher_agent.prompt_templates["system_prompt"] = researcher_prompt
 
 historian_agent = ToolCallingAgent(
     tools=[PythonInterpreterTool()],
     model=openAIModel,
+    max_steps=4
 )
 historian_agent.prompt_templates["system_prompt"] = historian_prompt
 
+def parse_events_to_JSON(str):
+    # regex patterns to use to 1) identify the start of another event (in the form #. at the start
+    # of a line) and 2) to identify the event label + value (in the form [#.] **label:** value, with
+    # flexibility in the **s, the presence of a number, and the presence of a colon)
+    event_start_re = re.compile(r"\s*\d+\.")
+    event_re = re.compile(r"\s*(?:\d+\.)?\s*\*{0,2}([^:']+):?\*{0,2}\s*(.+)")
+    url_re = re.compile(r"(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=]*)")
+
+    # if the label for the information contains any of these words, case insensitive, put 
+    # the content into the JSON object with the corresponding key
+    # i.e. for a line that contains 'year,' put the information for the year into the JSON
+    # object with key "date"
+    infoNameToKey = {
+        "year": "date",
+        "title": "event_title",
+        "description": "detailed_summary",
+        "location": "location_name",
+        "source": "source_url"
+    }
+
+    # construct final event list by going line-by-line
+    event_list = []
+    current_key = ""
+    for line in str.splitlines():
+        # adding a new event if we've reached a new event in the list (detected number
+        # at start of the line)
+        if re.match(event_start_re, line):
+            event_list.append({
+                "date": None,
+                "event_title": "",
+                "detailed_summary": "",
+                "location_name": "",
+                "latitude": None,
+                "longitude": None,
+                "source_url": ""
+            })
+        
+        # try to match the line to the <info label>: <info> pattern
+        matches = re.match(event_re, line)
+        if matches and len(event_list) > 0: 
+            # find the proper JSON key matching the info label
+            info_label = matches.group(1).strip().lower()
+            json_label = ""
+            for sub_label, actual_label in infoNameToKey.items():
+                if sub_label in info_label:
+                    json_label = actual_label
+                    break
+            # if we can't find a label, we assume the line is a continuation
+            # of the previous event, so we just add the entire match (stripped
+            # of leading/trailing whitespace) to the current info
+            whole_match = matches.group(0).strip()
+            if json_label == "":
+                # as long as current key is valid and the match isn't just whitespace,
+                # add it onto the current key info
+                whole_match = matches.group(0).strip()
+                if current_key in event_list[-1] and whole_match != "":
+                    event_list[-1][current_key] += " " + whole_match
+                # reset the key we're working on if we get a line of just whitespace
+                elif whole_match == "":
+                    current_key = ""
+                continue
+            # otherwise, get actual info, stripping extra info from the url
+            # as is necessary (sometimes the url is wrapped within
+            # parentheses, so an extra closing ) must be removed)
+            info = matches.group(2).strip()
+            if json_label == "source_url":
+                url = re.search(url_re, info)
+                if url:
+                    parsed_url = url.group(0)
+                    if parsed_url[-1] == ')':
+                        info = parsed_url[:-1]
+                    else:
+                        info = parsed_url
+            # update the current key/value we're constructing with this info
+            current_key = json_label 
+            event_list[-1][current_key] = info
+    return event_list
 
 ### Request Format Classes ###
 
@@ -243,7 +322,10 @@ def run_agents(request: AgentsRequest):
         researcher_response = researcher_agent.run(query_string)
         print("------ RESEARCHER ------")
         print(researcher_response)
-        historian_response_raw = historian_agent.run(researcher_response)
+        if scope != 'personal-events' and scope != 'economic-events':
+            historian_response_raw = historian_agent.run(researcher_response)
+        else:
+            historian_response_raw = parse_events_to_JSON(researcher_response)
         print("------ HISTORIAN ------")
         print(historian_response_raw)
 
