@@ -50,9 +50,23 @@ Find AT LEAST 5 (preferably more) significant personal events. For each event fo
 4.  **Description of Event and Impact on Artist:** A paragraph discussing the personal event and, crucially, explaining any known or speculated impact of this event on the artist's life, their artwork, their relationships, their emotional state, or how it might have indirectly influenced their perspective or work. Emphasize PERSONAL significance to the artist and avoid generic descriptions.
 5.  **Source:** Cite the source URL where you found the information.
 
+The information for each event must conform to the following structured schema:
+<number in list of events> **Year(s):** <year>
+   **Event Title:** <event title>
+   **Location:** <city or region name>
+   **Description of Event and Impact on Artist:** <explanation and discussion of event>
+   **Source:** <url>
+
+Example event output:
+1. **Year(s):** 1925
+   **Event Title:** Bus Accident
+   **Location:** Mexico City, Mexico
+   **Description of Event and Impact on Artist:** In September 1925, Kahlo was involved in a severe bus accident that resulted in multiple complex injuries. This event marked a turning point in her life as she underwent more than 30 medical operations over her lifetime. During her recovery, she began to paint, laying the foundation for her future artistic expression. The pain and suffering she experienced from her injuries would profoundly influence her later work, revealing her emotional and physical struggles.
+   **Source:** |Britannica](https://www.britannica.com/biography/Frida-Kahlo)
+
 ## **Rules**
 1. **Always prioritize credibility**: Do not retrieve information from unreliable sources. Always include the source URL in the output.
-2. **Format output as a structured, numbered list, not a paragraph-based response.**  
+2. **Format output as a numbered, structured list, not a paragraph-based response.**  
 3. **Never make more than two calls to search at once.** Searching is a limited resource, so combine all your information needs into one, at most two queries.
 4. **If a search attempt fails or the search limit is reached, do NOT retry.** State that a failure has occurred and proceed based on available information.
 5. **If a search yields results in a language other than English, translate the results into English**. If a translation is unable to be performed, state that it is unable to be translated and proceed based on available information.

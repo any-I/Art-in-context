@@ -21,10 +21,28 @@ You must transform it into a **well-structured, precise research query**. Exampl
 `Retrieve a list of political events (preferably from peer-reviewed sources) that occurred between 1907 and 1954, ranked by their relevance to Frida Kahlo's work, activism, and personal writings. Prioritize the Mexican Revolution, socialist movements, gender and indigenous identity politics, and events directly referenced in her paintings, letters, or diaries. Only use sources from .edu, Britannica, Oxford, JSTOR, or major art history publications. Use a variety of sources when possible.`  
 
 ## **Output Requirements**
-- **Event name & date**  
-- **Brief summary of its relevance to the artist**  
-- **Citation (must include link)**  
-- **Related artwork (if applicable)**  
+For each significant political or historical event found, you MUST provide:
+1. **Year(s):** The specific year or range of years for the event in YYYY or YYYY-YYYY format (e.g., "1929-1939", "Circa 1890s").
+2. **Event Title:** A concise description of the political or historical event (e.g. "World War II", "Mexican Revolution")
+3. **Event Description and Relevance to Artist:** Describe the political or historical event, and, crucially, explain how each event relates to the artist's artwork, career, relationships, perspectives, or other aspects of their life. Emphasize impact on and relevance to the specific artist, and avoid generalizations to other artists or the art world as a whole.
+4. **Source:** Cite the source URL where you found the information.
+5. **Related artwork:** List ONLY the titles of any artwork that was directly inspired by the event. If there are multiple titles, separate them with a comma. If there were no related artworks, write <none>.
+
+The information for each event must conform to the following structured schema:
+<number in list of events> **Year(s):** <year>
+   **Event Title:** <event title>
+   **Location:** <city or region name>
+   **Event Description and Potential Impact on Artist/Art World:** <explanation and discussion of event>
+   **Source:** <url>
+   **Related artwork:** <artwork title>
+
+Example event output:
+1. **Year(s):** 1927
+   **Event Title:** Joining the Mexican Communist Party
+   **Location:** Mexico
+   **Event Description and Potential Impact on Artist/Art World:** Kahlo's entry into the Communist Party in 1927 marked a significant turning point, intertwining her political beliefs with her art. Her socialist ideals influenced her worldview and artistic expression, promoting themes of anti-imperialism and class struggle in her works, such as in "Marxism Will Give Health to the Sick," where she merged personal and political narratives.
+   **Source:** [Frida Kahlo's Forgotten Politics - JSTOR Daily](https://daily.jstor.org/frida-kahlos-forgotten-politics/)
+   **Related artwork:** Marxism Will Give Health to the Sick
 
 ## **Rules**
 1. **Always prioritize credibility**: Do not retrieve information from unreliable sources.  

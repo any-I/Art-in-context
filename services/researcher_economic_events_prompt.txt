@@ -33,6 +33,22 @@ For each significant economic event/condition found, you MUST provide:
 4.  **Event Description and Potential Impact on Artist/Art World:** Describe the economic event and, crucially, explain how this economic factor might have plausibly affected the artist's career, financial stability, ability to sell work, choice of subject matter, access to materials, or the overall environment for artists in their location. Focus on *economic* consequences.
 5.  **Source:** Cite the source URL where you found the information.
 
+The information for each event must conform to the following structured schema:
+<number in list of events> **Year(s):** <year>
+   **Event Title:** <event title>
+   **Location:** <city or region name>
+   **Event Description and Potential Impact on Artist/Art World:** <explanation and discussion of event>
+   **Source:** <url>
+
+Example event output:
+1. **Year(s):** 1980s  
+   **Event Title:** Economic Boom and Rise of Neoliberal Capitalism
+   **Location/Scope:** United States
+   **Event Description and Potential Impact on Artist/Art World:** The 1980s in the United States marked a significant economic boom characterized by neoliberal policies which favored deregulation and private enterprise. 
+This created a more favorable environment for commercial art avenues, leading to an increased public interest in contemporary art and a significant rise in art market activity, which positively influenced artists like    
+Maya Lin. The burgeoning market allowed her work, particularly in public sculptures and memorials, to receive greater visibility and commissions.
+   **Source:** |How the Glitz and Excess of the 1980s Shaped Contemporary Art](https://www.artsy.net/article/artsy-editorial-glitz-excess-1980s-shaped-contemporary-art)
+
 ## **Rules**
 1. **Always prioritize credibility**: Do not retrieve information from unreliable sources. Always include the source URL in the output.
 2. **Format output as a structured, numbered list, not a paragraph-based response.**  
