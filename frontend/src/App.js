@@ -5,12 +5,14 @@ import { Chrono } from "react-chrono";
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import NetworkGraph from './NetworkGraph'; // Import NetworkGraph
-import { OpenStreetMapProvider } from 'leaflet-geosearch'; // Corrected Geocoding provider
 import 'leaflet-geosearch/dist/geosearch.css'; // Import Geocoding CSS
 import 'react-vertical-timeline-component/style.min.css'; // Keep existing imports
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 import {agentSearch} from './artistSearch';
 import {geocodeLocations} from './geocodeHelper';
 import {artworkSearch} from './artworkSearch';
+import Gallery from './Gallery';
 
 // Fix for default marker icon issue with Webpack
 import L from 'leaflet';
@@ -73,6 +75,7 @@ function App() {
     <div className="app-container">
       <h1 className="bold text-xl" style={{ textAlign: 'center'}}>Art Historical Context Engine with AI</h1>
 
+      <Gallery setArtistName={setArtistName}></Gallery>
       <div className="search-form">
         <div className="form-group">
           <label>Artist Name</label>
@@ -93,7 +96,7 @@ function App() {
           </>
             ) : (
               <>
-                  <span className="text-green-500 font-extrabold text-xl">+</span> Add Artwork Title
+                  <span className="text-green-500 font-extrabold text-xl">+</span> Add Artwork Title (optional)
               </>
           )}
         </button>
