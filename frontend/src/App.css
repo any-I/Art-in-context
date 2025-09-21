@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 .app-container {
-  max-width: 600px;
+  max-width: 66.666%;
   margin: 2rem auto;
   padding: 0 1rem;
 }
