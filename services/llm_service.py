@@ -5,10 +5,8 @@ import openai
 import json
 from pydantic import BaseModel
 from huggingface_hub import login
-from smolagents import CodeAgent, DuckDuckGoSearchTool, ToolCallingAgent, OpenAIServerModel, PythonInterpreterTool
+from smolagents import ToolCallingAgent, OpenAIServerModel, PythonInterpreterTool
 # for images:
-import re 
-import requests
 import llm_service_helpers as helpers
 
 ### Initialize FastAPI app ###
@@ -38,54 +36,80 @@ openAIModel = OpenAIServerModel(
 )
 
 ### Set up for AGENTS ###
-researcher_prompt = open("researcher_prompt.txt", "r", encoding="utf-8").read()
-historian_prompt = open("historian_prompt.txt", "r", encoding="utf-8").read()
-#print(researcher_prompt)
 
-# Load network prompts
 # Mapping each scope (as requested via calls to the API) to:
-#   a) the prompt file name (prefixed with researcher_/historian_ and postfixed with _prompt.txt)
-#      corresponding to the scope, and
-#   b) the human-readable version of the scope to be printed in error messages, logging messages, etc.
+#   a) the prompt file names corresponding to the scope (if there are multiple prompts, they will be run in
+#      sequence on the list of agents defined further below, passing the result of one prompt to the next)
+#   b) the type of output the scope is expected to return, either "event" for timeline events or "network" for
+#      artist network data - this determines which parser is used to parse the output
+#   c) the human-readable version of the scope to be printed in error messages, logging messages, etc.
+# An additional "prompt_files" key will be filled below after loading the actual files, being empty if an error 
+# occurred while loading the files
 scope_info = {
+    "political-events": {
+        "prompts": ["researcher_prompt"],
+        "prompt_files": [],
+        "output_parse_type": "event",
+        "name": "Political / historical"
+    },
     "artist-network": {
-        "prompt": "network",
+        "prompts": ["researcher_network_prompt", "historian_network_prompt"],
+        "prompt_files": [],
+        "output_parse_type": "network",
         "name": "Artist network"
     },
     "art-movements": {
-        "prompt": "art_movements",
+        "prompts": ["researcher_art_movements_prompt"],
+        "prompt_files": [],
+        "output_parse_type": "event",
         "name": "Art movement"
     },
     "personal-events": {
-        "prompt": "personal_events",
+        "prompts": ["researcher_personal_events_prompt"],
+        "prompt_files": [],
+        "output_parse_type": "event",
         "name": "Personal event"
     },
     "economic-events": {
-        "prompt": "economic_events",
+        "prompts": ["researcher_economic_events_prompt"],
+        "prompt_files": [],
+        "output_parse_type": "event",
         "name": "Economic event"
     },
     "genre": {
-        "prompt": "genre",
+        "prompts": ["researcher_genre_prompt", "historian_genre_prompt"],
+        "prompt_files": [],
+        "output_parse_type": "event",
         "name": "Genre"
     },
     "medium": {
-        "prompt": "medium",
+        "prompts": ["researcher_medium_prompt", "historian_medium_prompt"],
+        "prompt_files": [],
+        "output_parse_type": "event",
         "name": "Medium"
+    },
+    # will never be called in an API request, but used as a fallback if an unrecognized scope is requested
+    "default": {
+        "prompts": ["researcher_prompt"],
+        "prompt_files": [],
+        "output_parse_type": "event",
+        "name": "Political / historical (DEFAULT)"
     }
 }
-researcher_prompt_files = {}
-historian_prompt_files = {}
-for scope, prompt_info in scope_info.items():
+
+# loading the corresponding prompt files for each scope
+for scope, info in scope_info.items():
     try:
-        researcher_file_name = "researcher_" + prompt_info["prompt"] + "_prompt.txt"
-        historian_file_name = "historian_" + prompt_info["prompt"] + "_prompt.txt"
-        researcher_prompt_files[scope] = open(researcher_file_name, "r", encoding="utf-8").read()
-        historian_prompt_files[scope] = open(historian_file_name, "r", encoding="utf-8").read()
+        # loop through all prompt names and try to open their corresponding files, 
+        # appending them to the prompt_files list in scope info
+        for prompt in info["prompts"]:
+            newFile = open(prompt + ".txt", "r", encoding="utf-8").read()
+            info["prompt_files"].append(newFile) 
     except FileNotFoundError:
-        prompt_name = prompt_info["name"]
+        # on error, set prompt_files to empty list and print warning
+        info["prompt_files"] = []
+        prompt_name = info["name"]
         print("Warning: " + prompt_name + " prompt files not found. " + prompt_name + " scope may not function correctly.")
-        researcher_prompt_files[scope] = None # Set to None or a default fallback prompt
-        historian_prompt_files[scope] = None
 
 # Additional, standalone prompts to use when calling LLM directly, not using Huggingface agents
 # Load genre prompt
@@ -102,22 +126,67 @@ except FileNotFoundError:
     print("Warning: Medium prompt file not found. Medium scope may not function correctly.")
     medium_finder_prompt = None
 
-# construct tools and agents
+# construct rate-limited search tool and agents to be used across scopes
 rate_limited_search_tool = helpers.RateLimitedSearchTool()
+agents = [
+    ToolCallingAgent(
+        tools=[rate_limited_search_tool, PythonInterpreterTool()],
+        model=openAIModel,
+        max_steps=5
+    ), # researcher
+    ToolCallingAgent(
+        tools=[PythonInterpreterTool()],
+        model=openAIModel,
+        max_steps=4
+    ) # historian
+]
 
-researcher_agent = ToolCallingAgent(
-    tools=[rate_limited_search_tool, PythonInterpreterTool()],
-    model=openAIModel,
-    max_steps=5
+# construct parsers to take structured output and convert it to specific JSON objects
+event_parser = helpers.JSONParser(
+    {
+        "year": "date",
+        "title": "event_title",
+        "description": "detailed_summary",
+        "location": "location_name",
+        "source": "source_url",
+        "related": "related_artwork"
+    }, # label of information in structured text output to JSON key mapping
+    {
+        "date": None,
+        "event_title": "",
+        "detailed_summary": "",
+        "location_name": "",
+        "latitude": None,
+        "longitude": None,
+        "source_url": "",
+        "related_artwork": ""
+    }, # structure of default object
+    ["latitude", "longitude", "related_artwork"] # optional fields 
 )
-researcher_agent.prompt_templates["system_prompt"] = researcher_prompt
-
-historian_agent = ToolCallingAgent(
-    tools=[PythonInterpreterTool()],
-    model=openAIModel,
-    max_steps=4
-)
-historian_agent.prompt_templates["system_prompt"] = historian_prompt
+network_parser = helpers.JSONParser(
+    {
+        "name": "connected_entity_name",
+        "type": "entity_type",
+        "summary": "relationship_summary",
+        "duration": "relationship_duration",
+        "score": "connection_score",
+        "source": "source_url"
+    }, # label of information in structured text output to JSON key mapping
+    {
+        "connected_entity_name": "",
+        "entity_type": "",
+        "relationship_summary": "",
+        "relationship_duration": "",
+        "connection_score": 1,
+        "source_url": ""
+    }, # structure of default object
+    [],
+    {
+        # processing function to convert a string with a number to an actual
+        # integer, clamped from 1 to 10
+        "connection_score": lambda num: min(max(int(num), 1), 10)
+    }
+) 
 
 ### Request Format Classes ###
 
@@ -164,20 +233,10 @@ def run_agents(request: AgentsRequest):
 
     try:
         rate_limited_search_tool.reset()
-
-        # --- Conditional Prompt Assignment ---
-        if scope == 'political-events':
-            print("Using POLITICAL/HISTORICAL prompts")
-            researcher_agent.prompt_templates["system_prompt"] = researcher_prompt
-            historian_agent.prompt_templates["system_prompt"] = historian_prompt
-        elif scope in scope_info and researcher_prompt_files[scope] and historian_prompt_files[scope]:
-            print("Using " + scope_info[scope]["name"].upper() + " prompts")
-            researcher_agent.prompt_templates["system_prompt"] = researcher_prompt_files[scope]
-            historian_agent.prompt_templates["system_prompt"] = historian_prompt_files[scope]
         
         # Direct LLM call for Genre
-        elif scope == 'Genre' and genre_finder_prompt:
-            print("Using GENRE prompts")
+        if scope == 'Genre' and genre_finder_prompt:
+            print("Using GENRE prompt for direct LLM call")
             try:
                 # Format the simple prompt
                 formatted_prompt = genre_finder_prompt.format(query=request.artistName)
@@ -219,156 +278,56 @@ def run_agents(request: AgentsRequest):
                 print(f"Error during direct LLM call for scope '{scope}': {e}")
                 return {"error": f"Failed to retrieve medium for {request.artistName}"}
 
+        # handle other prompts that use agents and return timeline or network data
         else:
-            # Handle other scopes or fallback if network prompts are missing
-            print(f"Warning: Scope '{scope}' not explicitly handled or network prompts missing. Using default political/historical prompts.")
-            researcher_agent.prompt_templates["system_prompt"] = researcher_prompt
-            historian_agent.prompt_templates["system_prompt"] = historian_prompt
-        # ------------------------------------
-
-        researcher_response = researcher_agent.run(query_string)
-        print("------ RESEARCHER ------")
-        print(researcher_response)
-        if scope != 'personal-events' and scope != 'economic-events' and scope != "political-events":
-            historian_response_raw = historian_agent.run(researcher_response)
-        else:
-            historian_response_raw = helpers.parse_events_to_JSON(researcher_response)
-        print("------ HISTORIAN ------")
-        print(historian_response_raw)
-
-        # --- Parse Historian Response ---
-        error_message = None
-        timeline_events = []
-        network_data = []
-        try:
-            # Attempt to parse the raw response (expecting string or list)
-            if isinstance(historian_response_raw, list):
-                print("Historian response is already a list.")
-                parsed_data = historian_response_raw
-            elif isinstance(historian_response_raw, str):
-                print("Historian response is a string. Parsing JSON.")
-                json_part = historian_response_raw.strip()
-                if json_part.startswith("```json"):
-                    json_part = json_part[len("```json"):].strip()
-                if json_part.endswith("```"):
-                    json_part = json_part[:-len("```")].strip()
+            # get "target scope" - if scope is in scope_info and has a non-empty prompt file list,
+            # use the given prompt; otherwise default to the "default" scope and its prompt
+            target_scope = scope 
+            if scope not in scope_info or len(scope_info[target_scope]["prompt_files"]) == 0:
+                target_scope = "default" 
+                print(f"Warning: Scope '{scope}' not explicitly handled or network prompts missing. Using default prompt(s).")
+            
+            # run agents on as many prompts as is specified (some scopes have 1, some scopes have 2),
+            # passing in the result from the previous step
+            result = query_string
+            for index, prompt in enumerate(scope_info[target_scope]["prompt_files"]):
+                print(f"Running agent with prompt #{index + 1} for scope {target_scope}")
+                current_agent = agents[index]
+                current_agent.prompt_templates["system_prompt"] = prompt
+                result = current_agent.run(result)
+            
+            # parse and return the final result - either an event result or a network result
+            # handle event results
+            if scope_info[target_scope]["output_parse_type"] == "event":
+                event_list = event_parser.parse(result)
+                is_valid, error_message = event_parser.validate_parsed(event_list)
+                if not is_valid:
+                    raise RuntimeError("Error parsing AI response for event data (" + error_message + ")")
                 
-                # Attempt to fix common missing comma errors between JSON objects in a list
-                try:
-                    json_part = re.sub(r'}\s*\{', '}, {', json_part)
-                except Exception as regex_err:
-                    print(f"Warning: Regex correction failed: {regex_err}") # Log if regex fails, but proceed
+                # if valid, also do artwork search for events in the list
+                if len(event_list) > 0 and "related_artwork" in event_list[0]:
+                    for event in event_list:
+                        artwork_title = event["related_artwork"]
+                        if len(artwork_title) > 0 and artwork_title != "<none>":
+                            image_url = helpers.get_artwork_image(artwork_title, request.artistName, GOOGLE_API_KEY, GOOGLE_CSE_ID)
+                            event["artwork_image_url"] = image_url
+                        else:
+                            event["artwork_image_url"] = None 
+                        del event["related_artwork"] # once done, remove this key from event
 
-                try:
-                    parsed_data = json.loads(json_part)
-                except json.JSONDecodeError as json_err:
-                    print(f"Error decoding JSON: {json_err}")
-                    print(f"Problematic JSON string: {json_part}")
-                    error_message = f"Error: AI response was not valid JSON: {json_err}"
-                    parsed_data = [] # Ensure empty list on JSON error
-            else:
-                print(f"Warning: Historian response is of unexpected type: {type(historian_response_raw)}")
-                error_message = "Error: AI response was not in the expected format (string or list)."
-                parsed_data = []
-
-            # === Handle potential extra list wrapping by LLM for timeline scopes ===
-            if not error_message and scope in ['political-events', 'art-movements', 'personal-events', 'economic-events', 'genre', 'medium']:
-                if isinstance(parsed_data, list) and len(parsed_data) > 0 and isinstance(parsed_data[0], list):
-                    print("Warning: Detected nested list structure, extracting inner list.")
-                    parsed_data = parsed_data[0] # Use the inner list
-                elif not isinstance(parsed_data, list):
-                     # If it's not a list at all after parsing, log a warning.
-                     # The main validation will catch this and set an error message.
-                     print(f"Warning: Parsed data for timeline scope '{scope}' is not a list.")
-
-            # === SCOPE-SPECIFIC VALIDATION AND DATA EXTRACTION ===
-            if not error_message: # Only validate if parsing was successful
-                if scope in ['political-events', 'art-movements', 'personal-events', 'economic-events', 'genre', 'medium']: 
-                    # Validate common timeline structure for all timeline scopes
-                    if isinstance(parsed_data, list) and all(isinstance(item, dict) and
-                           'date' in item and
-                           'event_title' in item and
-                           'detailed_summary' in item and
-                           'location_name' in item and
-                           'latitude' in item and isinstance(item['latitude'], (int, float, type(None))) and # Allow None
-                           'longitude' in item and isinstance(item['longitude'], (int, float, type(None))) and # Allow None
-                           'source_url' in item for item in parsed_data):
-                        timeline_events = parsed_data # Assign validated list
-                        print(f"Validated {len(timeline_events)} timeline events for scope '{scope}'.")
-                    else:
-                        print(f"Warning: Parsed list items have incorrect timeline structure for scope '{scope}'.")
-                        error_message = f"Error: AI response format incorrect for scope '{scope}' (missing required fields or wrong types)."
-                        timeline_events = [] # Ensure empty on validation failure
-
-                elif scope == 'artist-network':
-                    # Validate network structure (ensure connection_score check remains if needed)
-                    if isinstance(parsed_data, list) and all(isinstance(item, dict) and
-                           'connected_entity_name' in item and
-                           'entity_type' in item and
-                           'relationship_summary' in item and
-                           'relationship_duration' in item and
-                           'connection_score' in item and isinstance(item['connection_score'], (int, float)) and
-                           'source_url' in item for item in parsed_data):
-                        network_data = parsed_data
-                        print(f"Validated {len(network_data)} network connections.")
-                    else:
-                        print("Warning: Parsed list items have incorrect network structure.")
-                        error_message = "Error: AI response format incorrect for network data (missing fields or wrong types)."
-                        network_data = [] # Ensure empty on validation failure
+                # return response
+                response_data = {"timelineEvents": event_list}
+                return response_data
+            
+            # handle network results
+            elif scope_info[target_scope]["output_parse_type"] == "network":
+                network_list = network_parser.parse(result)
+                is_valid, error_message = network_parser.validate_parsed(network_list)
+                if not is_valid:
+                    raise RuntimeError("Error parsing AI response for network data (" + error_message + ")")
                 else:
-                     # Handle unknown scopes
-                    print(f"Warning: Validation not defined for scope '{scope}'.")
-                    # Keep error_message as None or set a specific one if needed
-                    # error_message = f"Error: Unknown scope '{scope}' received for validation."
-                    # Ensure data lists remain empty
-                    timeline_events = []
-                    network_data = []
-            # ---------------------------------------------------------------
-
-            # --- Image Search for Timeline Events (if any extracted) ---
-            # Refactored: Moved outside scope-specific block to apply to any timeline scope
-            if timeline_events: # Check if timeline_events list is populated
-                print(f"Checking {len(timeline_events)} timeline events for artwork images...")
-                artwork_pattern = re.compile(r'\*\*(.*?)\*\*') # pattern to find **Artwork Title**
-                
-                for event in timeline_events:
-                    summary = event.get('detailed_summary', '')
-                    # print(f"Checking summary for artwork: {summary[:100]}...") # Optional: reduce verbosity
-                    match = artwork_pattern.search(summary)
-                    
-                    if match:
-                        print(f"Artwork pattern matched in summary!") 
-                        artwork_title = match.group(1).strip()
-                        image_url = helpers.get_artwork_image(artwork_title, GOOGLE_API_KEY, GOOGLE_CSE_ID)
-                        event['artwork_image_url'] = image_url # Add key if found
-                    else:
-                        event['artwork_image_url'] = None # Ensure the key exists even if no artwork found
-            # --------------------------------------------------------------
-
-            # --- CONSTRUCT FINAL RESPONSE --- 
-            response_data = {}
-            if scope in ['political-events', 'art-movements', 'personal-events', 'economic-events', 'genre', 'medium']: 
-                response_data = {"timelineEvents": timeline_events}
-                if error_message:
-                    response_data["error"] = error_message 
-            elif scope == 'artist-network':
-                response_data = {"networkData": network_data}
-            else:
-                # Fallback for unhandled scopes
-                response_data = {"error": error_message if error_message else f"Unhandled scope: {scope}"} 
-
-            print(f"Final response data keys: {list(response_data.keys())}")
-            return response_data
-
-        except Exception as e:
-            print(f"Error processing historian response: {e}")
-            # return error structure, ensuring keys match potential frontend expectation even on error
-            error_resp = {"error": f"Error processing AI response: {e}"}
-            if scope == 'artist-network':
-                error_resp["networkData"] = []
-            else: # Default or political-events
-                error_resp["timelineEvents"] = []
-            return error_resp
+                    response_data = {"networkData": network_list}
+                    return response_data
 
     except HTTPException as http_err:
         # Re-raise HTTP exceptions to be handled by FastAPI

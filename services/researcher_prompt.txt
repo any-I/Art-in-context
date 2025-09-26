@@ -26,7 +26,7 @@ For each significant political or historical event found, you MUST provide:
 2. **Event Title:** A concise description of the political or historical event (e.g. "World War II", "Mexican Revolution")
 3. **Event Description and Relevance to Artist:** Describe the political or historical event, and, crucially, explain how each event relates to the artist's artwork, career, relationships, perspectives, or other aspects of their life. Emphasize impact on and relevance to the specific artist, and avoid generalizations to other artists or the art world as a whole.
 4. **Source:** Cite the source URL where you found the information.
-5. **Related artwork:** List ONLY the titles of any artwork that was directly inspired by the event. If there are multiple titles, separate them with a comma. If there were no related artworks, write <none>.
+5. **Related artwork:** List ONLY the title of a SINGLE artwork that was directly inspired by the event being discussed. If there are no related artworks, write <none>.
 
 The information for each event must conform to the following structured schema:
 <number in list of events> **Year(s):** <year>
