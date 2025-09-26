@@ -2,7 +2,6 @@ from fastapi import FastAPI, HTTPException
 from dotenv import load_dotenv
 import os
 import openai
-import json
 from pydantic import BaseModel
 from huggingface_hub import login
 from smolagents import ToolCallingAgent, OpenAIServerModel, PythonInterpreterTool
@@ -111,21 +110,6 @@ for scope, info in scope_info.items():
         prompt_name = info["name"]
         print("Warning: " + prompt_name + " prompt files not found. " + prompt_name + " scope may not function correctly.")
 
-# Additional, standalone prompts to use when calling LLM directly, not using Huggingface agents
-# Load genre prompt
-try:
-    genre_finder_prompt = open("genre_finder_prompt.txt", "r", encoding="utf-8").read()
-except FileNotFoundError:
-    print("Warning: Genre prompt file not found. Genre scope may not function correctly.")
-    genre_finder_prompt = None
-
-# Load medium prompt (New)
-try:
-    medium_finder_prompt = open("medium_finder_prompt.txt", "r", encoding="utf-8").read()
-except FileNotFoundError:
-    print("Warning: Medium prompt file not found. Medium scope may not function correctly.")
-    medium_finder_prompt = None
-
 # construct rate-limited search tool and agents to be used across scopes
 rate_limited_search_tool = helpers.RateLimitedSearchTool()
 agents = [
@@ -233,101 +217,55 @@ def run_agents(request: AgentsRequest):
 
     try:
         rate_limited_search_tool.reset()
-        
-        # Direct LLM call for Genre
-        if scope == 'Genre' and genre_finder_prompt:
-            print("Using GENRE prompt for direct LLM call")
-            try:
-                # Format the simple prompt
-                formatted_prompt = genre_finder_prompt.format(query=request.artistName)
 
-                # Direct call to LLM
-                completion = openAIClient.chat.completions.create(
-                    model="gpt-4-turbo", # Or your preferred model
-                    messages=[
-                        {"role": "system", "content": "You are an art historian assistant.", "content": "Respond with ONLY the primary genre name."}, # System prompt reinforcement
-                        {"role": "user", "content": formatted_prompt}
-                    ],
-                    temperature=0.1 # Low temperature for factual recall
-                )
-                genre_result = completion.choices[0].message.content.strip()
-                print(f"Genre result from LLM: {genre_result}")
-                # Return the specific simple format
-                return {"genre": genre_result}
-            except Exception as e:
-                print(f"Error during direct LLM call for scope '{scope}': {e}")
-                return {"error": f"Failed to retrieve genre for {request.artistName}"}
-
-        # Direct LLM call for Medium (New)
-        elif scope == 'artist-medium' and medium_finder_prompt: 
-            print("Using MEDIUM prompt for direct LLM call")
-            try:
-                formatted_prompt = medium_finder_prompt.format(query=request.artistName)
-                completion = openAIClient.chat.completions.create(
-                    model="gpt-4", # Or your preferred fast model
-                    messages=[
-                        {"role": "system", "content": "You are an art historian assistant. Respond with ONLY the primary, specific artistic medium (e.g., 'oil paints', 'bronze sculpture')."},
-                        {"role": "user", "content": formatted_prompt}
-                    ],
-                    temperature=0.1
-                )
-                medium_result = completion.choices[0].message.content.strip()
-                print(f"Medium result from LLM: {medium_result}")
-                return {"medium": medium_result} 
-            except Exception as e:
-                print(f"Error during direct LLM call for scope '{scope}': {e}")
-                return {"error": f"Failed to retrieve medium for {request.artistName}"}
-
-        # handle other prompts that use agents and return timeline or network data
-        else:
-            # get "target scope" - if scope is in scope_info and has a non-empty prompt file list,
-            # use the given prompt; otherwise default to the "default" scope and its prompt
-            target_scope = scope 
-            if scope not in scope_info or len(scope_info[target_scope]["prompt_files"]) == 0:
-                target_scope = "default" 
-                print(f"Warning: Scope '{scope}' not explicitly handled or network prompts missing. Using default prompt(s).")
+        # get "target scope" - if scope is in scope_info and has a non-empty prompt file list,
+        # use the given prompt; otherwise default to the "default" scope and its prompt
+        target_scope = scope 
+        if scope not in scope_info or len(scope_info[target_scope]["prompt_files"]) == 0:
+            target_scope = "default" 
+            print(f"Warning: Scope '{scope}' not explicitly handled or network prompts missing. Using default prompt(s).")
             
-            # run agents on as many prompts as is specified (some scopes have 1, some scopes have 2),
-            # passing in the result from the previous step
-            result = query_string
-            for index, prompt in enumerate(scope_info[target_scope]["prompt_files"]):
-                print(f"Running agent with prompt #{index + 1} for scope {target_scope}")
-                current_agent = agents[index]
-                current_agent.prompt_templates["system_prompt"] = prompt
-                result = current_agent.run(result)
+        # run agents on as many prompts as is specified (some scopes have 1, some scopes have 2),
+        # passing in the result from the previous step
+        result = query_string
+        for index, prompt in enumerate(scope_info[target_scope]["prompt_files"]):
+            print(f"Running agent with prompt #{index + 1} for scope {target_scope}")
+            current_agent = agents[index]
+            current_agent.prompt_templates["system_prompt"] = prompt
+            result = current_agent.run(result)
             
-            # parse and return the final result - either an event result or a network result
-            # handle event results
-            if scope_info[target_scope]["output_parse_type"] == "event":
-                event_list = event_parser.parse(result)
-                is_valid, error_message = event_parser.validate_parsed(event_list)
-                if not is_valid:
-                    raise RuntimeError("Error parsing AI response for event data (" + error_message + ")")
+        # parse and return the final result - either an event result or a network result
+        # handle event results
+        if scope_info[target_scope]["output_parse_type"] == "event":
+            event_list = event_parser.parse(result)
+            is_valid, error_message = event_parser.validate_parsed(event_list)
+            if not is_valid:
+                raise RuntimeError("Error parsing AI response for event data (" + error_message + ")")
                 
-                # if valid, also do artwork search for events in the list
-                if len(event_list) > 0 and "related_artwork" in event_list[0]:
-                    for event in event_list:
-                        artwork_title = event["related_artwork"]
-                        if len(artwork_title) > 0 and artwork_title != "<none>":
-                            image_url = helpers.get_artwork_image(artwork_title, request.artistName, GOOGLE_API_KEY, GOOGLE_CSE_ID)
-                            event["artwork_image_url"] = image_url
-                        else:
-                            event["artwork_image_url"] = None 
-                        del event["related_artwork"] # once done, remove this key from event
+            # if valid, also do artwork search for events in the list
+            if len(event_list) > 0 and "related_artwork" in event_list[0]:
+                for event in event_list:
+                    artwork_title = event["related_artwork"]
+                    if len(artwork_title) > 0 and artwork_title != "<none>":
+                        image_url = helpers.get_artwork_image(artwork_title, request.artistName, GOOGLE_API_KEY, GOOGLE_CSE_ID)
+                        event["artwork_image_url"] = image_url
+                    else:
+                        event["artwork_image_url"] = None 
+                    del event["related_artwork"] # once done, remove this key from event
 
-                # return response
-                response_data = {"timelineEvents": event_list}
-                return response_data
+            # return response
+            response_data = {"timelineEvents": event_list}
+            return response_data
             
-            # handle network results
-            elif scope_info[target_scope]["output_parse_type"] == "network":
-                network_list = network_parser.parse(result)
-                is_valid, error_message = network_parser.validate_parsed(network_list)
-                if not is_valid:
-                    raise RuntimeError("Error parsing AI response for network data (" + error_message + ")")
-                else:
-                    response_data = {"networkData": network_list}
-                    return response_data
+        # handle network results
+        elif scope_info[target_scope]["output_parse_type"] == "network":
+            network_list = network_parser.parse(result)
+            is_valid, error_message = network_parser.validate_parsed(network_list)
+            if not is_valid:
+                raise RuntimeError("Error parsing AI response for network data (" + error_message + ")")
+            else:
+                response_data = {"networkData": network_list}
+                return response_data
 
     except HTTPException as http_err:
         # Re-raise HTTP exceptions to be handled by FastAPI
