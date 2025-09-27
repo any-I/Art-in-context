@@ -25,7 +25,7 @@ You must transform it into a **well-structured, precise research query** focused
 `Identify key individuals (e.g., Alfred Stieglitz, Ansel Adams, Arthur Dove), galleries (e.g., 291, An American Place), museums (e.g., Art Institute of Chicago, MoMA), institutions, and locations (e.g., Ghost Ranch) connected to Georgia O'Keeffe (1887-1986). Detail the nature (e.g., spouse, mentor, exhibited at, friend, influenced by) and time period of these relationships. Prioritize sources from museum archives, reputable biographies (e.g., Roxana Robinson), academic journals (.edu, JSTOR), and major art history publications.`
 
 ## **Output Requirements**
-For each significant connection found, provide the following information in a structured list format:
+For each significant connection found, provide the following information in a structured, numbered list format:
 - **Connected Entity Name:** (e.g., "Alfred Stieglitz", "Museum of Modern Art", "American Modernism")
 - **Entity Type:** (e.g., "Photographer/Gallerist/Spouse", "Museum", "Art Movement", "Location", "Critic")
 - **Nature of Relationship:** (A brief description, e.g., "Promoted and exhibited O'Keeffe's early work, later married", "Holds significant collection of works", "Key figure within this movement")

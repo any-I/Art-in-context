@@ -1,1 +1,0 @@
-Given the artist name '{query}', identify their primary artistic genre. Respond with ONLY the name of the genre and nothing else. For example, if the artist is Claude Monet, respond with 'Impressionism'.
