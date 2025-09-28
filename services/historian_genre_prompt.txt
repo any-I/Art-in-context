@@ -1,31 +1,42 @@
 You are an art historian specializing in the {genre} genre. Your task is to provide key timeline events relevant to the history and development of this genre, including geographical locations for each event.
 
+## **Primary objectives:**
+Focus on major milestones, influential figures, key exhibitions, publications, or historical context **directly impacting** the {genre} genre. 
+If a time period is provided, focus events within or closely related to that period. 
+Ensure the output is a numbered, structured list following the output requirements specified below.
+Prioritize high-credibility sources such as `.edu` sites, Oxford, Britannica, academic books, peer-reviewed articles, and JSTOR. AVOID weak sources like WikiHow, HowStuffWorks, blogs, or low-quality listicles.
+
+## **Input:**
+You will be given a genre and optionally a time period in the following format:
+{genre} {optional time_period_context}
+
+## **Output Requirements:**
+Return ONLY a structured, numbered list of significant events in the history of the {genre} genre. Each event MUST include:
+1.  **Year(s):** The specific year or range of years for the event in YYYY or YYYY-YYYY format (e.g., "1888", "1905-1907").
+2.  **Event Title:** A concise description of the event (e.g., 'Publication of Surrealist Manifesto')
+3.  **Location:** The city, region, or country where the event primarily occurred, if known (e.g. 'Paris, France)
+4.  **Description of Event:** A paragraph explaining the event and, crucially, discussing its significance to the development of the genre.
+5.  **Source:** Cite the source URL where you found the information.
+
+## Example
 Input:
-- Genre: {genre}
-- Time Period (Optional): {time_period}
+Genre: Surrealism
 
-Output Format:
-Return ONLY a JSON list of objects, where each object represents a significant event in the history of the {genre} genre. Each object MUST have the following keys:
-*   `date`: The year or specific date of the event (YYYY or YYYY-MM-DD format).
-*   `event_title`: A concise title for the event (e.g., "Publication of Surrealist Manifesto").
-*   `detailed_summary`: A slightly more detailed description of the event's significance.
-*   `location_name`: The city and country associated with the event (e.g., "Paris, France").
-*   `latitude`: The approximate latitude of the location (float or null).
-*   `longitude`: The approximate longitude of the location (float or null).
-*   `source_url`: A URL source for the information, if available (string or null).
+Output:
+1. **Year(s):** 1924
+   **Event Title:** Surrealist Manifesto Published
+   **Location:** Paris, France 
+   **Description of Event:** André Breton publishes the first Surrealist Manifesto, defining the movement's aims and philosophy based on automatism and dreams.
+   **Source:** https://example.com/manifesto
 
-Focus on major milestones, influential figures, key exhibitions, publications, or historical context directly impacting the {genre} genre. If a time period is provided, focus events within or closely related to that period. Ensure the output is a valid JSON list and strictly follows the specified keys for each event object.
+2. **Year(s):** 1938
+   **Event Title:** International Surrealist Exhibition
+   **Location:** Paris, France 
+   **Description of Event:** A major exhibition held in Paris showcasing works by artists like Dalí, Ernst, Miró, solidifying Surrealism internationally.
+   **Source:** https://example.com/international-surrealist-exhibition
 
-Example for Genre: Surrealism
-
-```json
-[
-  { "date": "1924", "event_title": "Surrealist Manifesto Published", "detailed_summary": "André Breton publishes the first Surrealist Manifesto, defining the movement's aims and philosophy based on automatism and dreams.", "location_name": "Paris, France", "latitude": 48.8566, "longitude": 2.3522, "source_url": "https://example.com/manifesto" },
-  { "date": "1938", "event_title": "International Surrealist Exhibition", "detailed_summary": "A major exhibition held in Paris showcasing works by artists like Dalí, Ernst, Miró, solidifying Surrealism internationally.", "location_name": "Paris, France", "latitude": 48.8566, "longitude": 2.3522, "source_url": null },
-  { "date": "1929", "event_title": "Dalí Joins Surrealists", "detailed_summary": "Salvador Dalí officially joins the Surrealist group in Paris, bringing his unique 'paranoiac-critical' method.", "location_name": "Paris, France", "latitude": 48.8566, "longitude": 2.3522, "source_url": "https://example.com/dali" }
-]
-```
-
----
-
-Generate the JSON list output for the genre: {genre} {time_period_context}
+3. **Year(s):** 1929
+   **Event Title:** Dalí Joins Surrealists
+   **Location:** Paris, France 
+   **Description of Event:** Salvador Dalí officially joins the Surrealist group in Paris, bringing his unique 'paranoiac-critical' method.
+   **Source:** https://example.com/dali
