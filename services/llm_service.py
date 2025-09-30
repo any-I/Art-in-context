@@ -185,24 +185,6 @@ class AgentsRequest(BaseModel):
 
 ### ENDPOINTS ###
 
-@app.post("/summarize")
-def summarize_events(request: SummarizeRequest):
-    # Build string of event titles & snippets
-    events_text = [event['title'] + ": " + event.get("snippet", "") for event in request.events]
-    events_string = "\n".join(events_text)
-
-    try:
-        response = openAIClient.chat.completions.create(
-            model="gpt-4-turbo",
-            messages=[
-                {"role": "system", "content": f"Summarize how the historical events influenced {request.artistName}'s work in a single concise paragraph. Avoid listing events separately. Maintain historical accuracy and neutrality."},
-                {"role": "user", "content": events_string}
-            ]
-        )
-        return {"summary": response.choices[0].message.content}
-    except Exception as e:
-        return {"summary": "Error generating summary."}
-
 @app.post("/agent")
 def run_agents(request: AgentsRequest):
     print(AgentsRequest)
