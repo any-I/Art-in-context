@@ -34,7 +34,7 @@ openAIModel = OpenAIServerModel(
     api_key = OPENAI_API_KEY
 )
 
-### Set up for AGENTS ###
+### Set up for handling different scopes ###
 
 # Mapping each scope (as requested via calls to the API) to:
 #   a) the prompt file names corresponding to the scope (if there are multiple prompts, they will be run in
@@ -110,22 +110,11 @@ for scope, info in scope_info.items():
         prompt_name = info["name"]
         print("Warning: " + prompt_name + " prompt files not found. " + prompt_name + " scope may not function correctly.")
 
-# construct rate-limited search tool and agents to be used across scopes
-rate_limited_search_tool = helpers.RateLimitedSearchTool()
-agents = [
-    ToolCallingAgent(
-        tools=[rate_limited_search_tool, PythonInterpreterTool()],
-        model=openAIModel,
-        max_steps=5
-    ), # researcher
-    ToolCallingAgent(
-        tools=[PythonInterpreterTool()],
-        model=openAIModel,
-        max_steps=4
-    ) # historian
-]
+### Set up for parsing different scope output types ###
 
-# construct parsers to take structured output and convert it to specific JSON objects
+# Construct parsers to take structured output and convert it to specific JSON objects
+# These will be referenced in the scope info below to indicate which how each scope's output
+# should be parsed
 event_parser = helpers.JSONParser(
     {
         "year": "date",
@@ -171,6 +160,33 @@ network_parser = helpers.JSONParser(
         "connection_score": lambda num: min(max(int(num), 1), 10)
     }
 ) 
+output_types = {
+    "event": {
+        "parser": event_parser,
+        "return_key": "timelineEvents"
+    },
+    "network": {
+        "parser": network_parser,
+        "return_key": "networkData"
+    }
+}
+
+### Set up for agents ###
+
+# construct rate-limited search tool and agents to be used across scopes
+rate_limited_search_tool = helpers.RateLimitedSearchTool()
+agents = [
+    ToolCallingAgent(
+        tools=[rate_limited_search_tool, PythonInterpreterTool()],
+        model=openAIModel,
+        max_steps=5
+    ), # researcher
+    ToolCallingAgent(
+        tools=[PythonInterpreterTool()],
+        model=openAIModel,
+        max_steps=4
+    ) # historian
+]
 
 ### Request Format Classes ###
 
@@ -182,6 +198,55 @@ class AgentsRequest(BaseModel):
     artistName: str
     context: list
 
+### Main logic for endpoints ###
+
+# Main function to run agents given a specific query string and the name of the key
+# in scope_info containing the prompt files to run
+# Returns the resultsas well as the type that it should be parsed as (handing it off to
+# calling code to process it accordingly)
+def query_agents(scope: str, query: str, prompt_files_key: str):
+    target_scope = scope 
+    if scope not in scope_info or len(scope_info[target_scope][prompt_files_key]) == 0:
+        target_scope = "default" 
+        print(f"Warning: Scope '{scope}' not explicitly handled. Using default prompt(s).")
+            
+    # run agents on as many prompts as is specified (some scopes have 1, some scopes have 2),
+    # passing in the result from the previous step
+    result = query
+    for index, prompt in enumerate(scope_info[target_scope][prompt_files_key]):
+        print(f"Running agent with prompt #{index + 1} for scope {target_scope}")
+        current_agent = agents[index]
+        current_agent.prompt_templates["system_prompt"] = prompt
+        result = current_agent.run(result)
+    
+    # return output type and result string
+    return result, scope_info[target_scope]["output_parse_type"]
+
+# Helper function to parse a result string with a given parse type, raising a runtime error
+# if the parsed result is not valid or if the parser type is unrecognized, and returning the 
+# results otherwise
+def parse_into_list(result_str: str, output_type: str):
+    if output_type not in output_types:
+        raise RuntimeError("No corresponding parser for this output type")
+    parser = output_types[output_type]["parser"]
+    parsed_list = parser.parse(result_str)
+    is_valid, error_message = parser.validate_parsed(parsed_list)
+    if not is_valid:
+        raise RuntimeError("Error parsing AI response for data (" + error_message + ")")
+    return parsed_list
+
+# Helper function to additionally process an event list by searching for artworks referenced
+# within an event; modifies the event list in-place so doesn't return it
+def find_artworks_for_events(event_list: list[dict[str, any]], artist_name: str):
+    for event in event_list:
+        if "related_artwork" in event:
+            artwork_title = event["related_artwork"]
+            if len(artwork_title) > 0 and artwork_title != "<none>":
+                image_url = helpers.get_artwork_image(artwork_title, artist_name, GOOGLE_API_KEY, GOOGLE_CSE_ID)
+                event["artwork_image_url"] = image_url
+            else:
+                event["artwork_image_url"] = None 
+            del event["related_artwork"] # once done, remove this key from event
 
 ### ENDPOINTS ###
 
@@ -198,56 +263,18 @@ def run_agents(request: AgentsRequest):
     print(f"Query string: {query_string}")
 
     try:
+        # reset search tool and query the agents for a result list + the type which it should be parsed as
         rate_limited_search_tool.reset()
+        result_str, parse_type = query_agents(scope, query_string, "prompt_files")
 
-        # get "target scope" - if scope is in scope_info and has a non-empty prompt file list,
-        # use the given prompt; otherwise default to the "default" scope and its prompt
-        target_scope = scope 
-        if scope not in scope_info or len(scope_info[target_scope]["prompt_files"]) == 0:
-            target_scope = "default" 
-            print(f"Warning: Scope '{scope}' not explicitly handled or network prompts missing. Using default prompt(s).")
-            
-        # run agents on as many prompts as is specified (some scopes have 1, some scopes have 2),
-        # passing in the result from the previous step
-        result = query_string
-        for index, prompt in enumerate(scope_info[target_scope]["prompt_files"]):
-            print(f"Running agent with prompt #{index + 1} for scope {target_scope}")
-            current_agent = agents[index]
-            current_agent.prompt_templates["system_prompt"] = prompt
-            result = current_agent.run(result)
-            
-        # parse and return the final result - either an event result or a network result
-        # handle event results
-        if scope_info[target_scope]["output_parse_type"] == "event":
-            event_list = event_parser.parse(result)
-            is_valid, error_message = event_parser.validate_parsed(event_list)
-            if not is_valid:
-                raise RuntimeError("Error parsing AI response for event data (" + error_message + ")")
-                
-            # if valid, also do artwork search for events in the list
-            if len(event_list) > 0 and "related_artwork" in event_list[0]:
-                for event in event_list:
-                    artwork_title = event["related_artwork"]
-                    if len(artwork_title) > 0 and artwork_title != "<none>":
-                        image_url = helpers.get_artwork_image(artwork_title, request.artistName, GOOGLE_API_KEY, GOOGLE_CSE_ID)
-                        event["artwork_image_url"] = image_url
-                    else:
-                        event["artwork_image_url"] = None 
-                    del event["related_artwork"] # once done, remove this key from event
-
-            # return response
-            response_data = {"timelineEvents": event_list}
-            return response_data
-            
-        # handle network results
-        elif scope_info[target_scope]["output_parse_type"] == "network":
-            network_list = network_parser.parse(result)
-            is_valid, error_message = network_parser.validate_parsed(network_list)
-            if not is_valid:
-                raise RuntimeError("Error parsing AI response for network data (" + error_message + ")")
-            else:
-                response_data = {"networkData": network_list}
-                return response_data
+        # parse the result string, and if it contains events, search for artworks within it
+        result_list = parse_into_list(result_str, parse_type)
+        if(parse_type == "event"):
+            find_artworks_for_events(result_list, request.artistName)
+        
+        # return a dictionary with a key depending on the type of data being returned
+        response_key = output_types[parse_type]["return_key"]
+        return { response_key: result_list }
 
     except HTTPException as http_err:
         # Re-raise HTTP exceptions to be handled by FastAPI
