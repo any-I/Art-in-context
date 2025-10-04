@@ -16,6 +16,12 @@ import java.util.regex.Pattern;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.http.MediaType;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+
 @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api")
@@ -123,31 +129,67 @@ public class AppController {
     }
 
     @GetMapping("/agent")
-    public ResponseEntity<String> searchWithAgents(
+    public SseEmitter searchWithAgents(
         @RequestParam String artistName,
         @RequestParam String context
     ) {
         System.out.println("/agent: " + artistName + ", " + context);
-        try {
-            RestTemplate restTemplate = new RestTemplate();
+        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
+        
+        CompletableFuture.runAsync(() -> {
+            try {
+                WebClient webClient = WebClient.create();
 
-            JSONObject pythonServiceRequest = new JSONObject();
-            pythonServiceRequest.put("artistName", artistName);
-            JSONArray contextArray = new JSONArray(context.split(","));
-            pythonServiceRequest.put("context", contextArray);
+                JSONObject pythonServiceRequest = new JSONObject();
+                pythonServiceRequest.put("artistName", artistName);
+                JSONArray contextArray = new JSONArray(context.split(","));
+                pythonServiceRequest.put("context", contextArray);
 
-            String llmServiceURL = PYTHON_SERVICE_URL + "/agent";
+                String llmServiceURL = PYTHON_SERVICE_URL + "/agent";
 
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<String> entity = new HttpEntity<>(pythonServiceRequest.toString(), headers);
-
-            ResponseEntity<String> response = restTemplate.postForEntity(llmServiceURL, entity, String.class);
-            return response;
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new JSONObject()
-                .put("error", "Error searching with agents: " + e.getMessage()).toString());
-        }
+                webClient
+                    .post()
+                    .uri(llmServiceURL)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.TEXT_EVENT_STREAM)
+                    .bodyValue(pythonServiceRequest.toString())
+                    .retrieve()
+                    .bodyToFlux(String.class)
+                    .subscribe(
+                        line -> {
+                            System.out.println("Received line: " + line);
+                            try {
+                                // Handle both SSE format and raw JSON
+                                String jsonData = line.trim();
+                                if (jsonData.startsWith("data: ")) {
+                                    jsonData = jsonData.substring(6).trim();
+                                }
+                                
+                                if (!jsonData.isEmpty() && jsonData.startsWith("{")) {
+                                    System.out.println("Sending to emitter: " + jsonData);
+                                    emitter.send(SseEmitter.event().data(jsonData));
+                                }
+                            } catch (IOException e) {
+                                System.err.println("Error sending to emitter: " + e.getMessage());
+                                emitter.completeWithError(e);
+                            }
+                        },
+                        error -> {
+                            System.err.println("Error in stream: " + error.getMessage());
+                            emitter.completeWithError(error);
+                        },
+                        () -> {
+                            System.out.println("Stream completed successfully");
+                            emitter.complete();
+                        }
+                    );
+            } catch (Exception e) {
+                System.err.println("Error setting up stream: " + e.getMessage());
+                emitter.completeWithError(e);
+            }
+        });
+        
+        return emitter;
     }
 
     private String getArtistPageId(String name, RestTemplate restTemplate) throws Exception {

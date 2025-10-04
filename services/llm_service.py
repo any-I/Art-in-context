@@ -1,10 +1,13 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
+
 from dotenv import load_dotenv
 import os
 import openai
 from pydantic import BaseModel
 from huggingface_hub import login
 from smolagents import ToolCallingAgent, OpenAIServerModel, PythonInterpreterTool
+import json
 # for images:
 import llm_service_helpers as helpers
 
@@ -204,18 +207,33 @@ def summarize_events(request: SummarizeRequest):
         return {"summary": "Error generating summary."}
 
 @app.post("/agent")
-def run_agents(request: AgentsRequest):
-    print(AgentsRequest)
-    # Ensure context is a list and not empty before accessing
-    if not request.context or not isinstance(request.context, list):
-        raise HTTPException(status_code=400, detail="Invalid context provided. Expected a non-empty list.")
-        
-    scope = request.context[0] # Get the primary scope
-    query_string = "<" + request.artistName + ": [" + ", ".join(request.context) + "]>"
-    print(f"Running agents for scope: {scope}")
-    print(f"Query string: {query_string}")
+async def run_agents(request: AgentsRequest):
+    return StreamingResponse(
+        run_agents_stream(request),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable proxy buffering
+        }
+    )
 
+async def run_agents_stream(request: AgentsRequest):
     try:
+        print(AgentsRequest)
+        yield f"data: {json.dumps({'status': 'starting', 'message': f'Starting analysis for {request.artistName}'})}\n\n"
+
+        # Ensure context is a list and not empty before accessing
+        if not request.context or not isinstance(request.context, list):
+            yield f"data: {json.dumps({'status': 'error', 'error': 'Invalid context provided'})}\n\n"
+            return        
+        scope = request.context[0] # Get the primary scope
+        query_string = "<" + request.artistName + ": [" + ", ".join(request.context) + "]>"
+        print(f"Running agents for scope: {scope}")
+        print(f"Query string: {query_string}")
+
+        yield f"data: {json.dumps({'status': 'processing', 'message': 'Running researcher agent...'})}\n\n"
+        
         rate_limited_search_tool.reset()
 
         # get "target scope" - if scope is in scope_info and has a non-empty prompt file list,
@@ -230,9 +248,13 @@ def run_agents(request: AgentsRequest):
         result = query_string
         for index, prompt in enumerate(scope_info[target_scope]["prompt_files"]):
             print(f"Running agent with prompt #{index + 1} for scope {target_scope}")
+            agent_name = "Researcher" if index == 0 else "Historian"
+            yield f"data: {json.dumps({'status': 'processing', 'message': f'Running {agent_name} agent...'})}\n\n"
             current_agent = agents[index]
             current_agent.prompt_templates["system_prompt"] = prompt
             result = current_agent.run(result)
+
+        yield f"data: {json.dumps({'status': 'processing', 'message': 'Parsing results...'})}\n\n"
             
         # parse and return the final result - either an event result or a network result
         # handle event results
@@ -240,10 +262,13 @@ def run_agents(request: AgentsRequest):
             event_list = event_parser.parse(result)
             is_valid, error_message = event_parser.validate_parsed(event_list)
             if not is_valid:
-                raise RuntimeError("Error parsing AI response for event data (" + error_message + ")")
-                
+                yield f"data: {json.dumps({'status': 'error', 'error': f'Parsing error: {error_message}'})}\n\n"
+                return
+            
             # if valid, also do artwork search for events in the list
             if len(event_list) > 0 and "related_artwork" in event_list[0]:
+                yield f"data: {json.dumps({'status': 'processing', 'message': 'Searching for artwork images...'})}\n\n"
+
                 for event in event_list:
                     artwork_title = event["related_artwork"]
                     if len(artwork_title) > 0 and artwork_title != "<none>":
@@ -255,27 +280,26 @@ def run_agents(request: AgentsRequest):
 
             # return response
             response_data = {"timelineEvents": event_list}
-            return response_data
+            # return response_data
+            yield f"data: {json.dumps({'status': 'complete', 'data': response_data})}\n\n"
             
         # handle network results
         elif scope_info[target_scope]["output_parse_type"] == "network":
             network_list = network_parser.parse(result)
             is_valid, error_message = network_parser.validate_parsed(network_list)
             if not is_valid:
-                raise RuntimeError("Error parsing AI response for network data (" + error_message + ")")
-            else:
-                response_data = {"networkData": network_list}
-                return response_data
+                yield f"data: {json.dumps({'status': 'error', 'error': f'Parsing error: {error_message}'})}\n\n"
+                return
+            response_data = {"networkData": network_list}
+            # return response_data
+            yield f"data: {json.dumps({'status': 'complete', 'data': response_data})}\n\n"
 
-    except HTTPException as http_err:
-        # Re-raise HTTP exceptions to be handled by FastAPI
-        raise http_err 
     except Exception as e:
         print(f"Error during agent execution: {e}")
-        # return error structure, ensuring keys match potential frontend expectation even on error
-        error_resp = {"error": f"Error during agent execution: {e}"}
-        if scope == 'artist-network':
-            error_resp["networkData"] = []
-        else: # Default or political-events
-            error_resp["timelineEvents"] = []
-        return error_resp
+        error_data = {
+            'status': 'error',
+            'error': str(e),
+            'networkData': [] if scope == 'artist-network' else None,
+            'timelineEvents': [] if scope != 'artist-network' else None
+        }
+        yield f"data: {json.dumps(error_data)}\n\n"

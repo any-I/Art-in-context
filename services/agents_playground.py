@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from dotenv import load_dotenv
 from huggingface_hub import login
-from smolagents import CodeAgent, DuckDuckGoSearchTool, HfApiModel, ToolCallingAgent, OpenAIServerModel, PythonInterpreterTool
+from smolagents import CodeAgent, DuckDuckGoSearchTool, ToolCallingAgent, OpenAIServerModel, PythonInterpreterTool
 import os
 import openai
 
