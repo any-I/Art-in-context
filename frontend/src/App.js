@@ -119,18 +119,32 @@ function App() {
               value={scope}
               onChange={(e) => setScope(e.target.value)}
           >
-            <option value="artist-network">Artist Network (Graph)</option>
-            <option value="political-events">Political Events (Timeline, Map)</option>
-            <option value="economic-events">Economic Events (Timeline, Map)</option>
-            <option value="art-movements">Art Movements (Timeline, Map)</option>
-            <option value="personal-events">Personal Events (Timeline, Map)</option>
-            <option value="genre">Artist Genre (Timeline, Map)</option>
-            <option value="medium">Artist Medium (Timeline, Map)</option>
+            {artworkTitleOn ? (
+                <>
+                  <option value="political-events">Political Events (Timeline, Map)</option>
+                  <option value="economic-events">Economic Events (Timeline, Map)</option>
+                  <option value="art-movements">Art Movements (Timeline, Map)</option>
+                  <option value="personal-events">Personal Events (Timeline, Map)</option>
+                  <option value="genre">Artist Genre (Timeline, Map)</option>
+                </>
+            ) : (
+                <>
+                  <option value="artist-network">Artist Network (Graph)</option>
+                  <option value="political-events">Political Events (Timeline, Map)</option>
+                  <option value="economic-events">Economic Events (Timeline, Map)</option>
+                  <option value="art-movements">Art Movements (Timeline, Map)</option>
+                  <option value="personal-events">Personal Events (Timeline, Map)</option>
+                  <option value="genre">Artist Genre (Timeline, Map)</option>
+                  <option value="medium">Artist Medium (Timeline, Map)</option>
+                </>
+
+            )}
+
           </select>
         </div>
 
         <button onClick={() => {
-          if(!artworkTitleOn || artworkTitle === "" || artworkTitle.toLowerCase() === "untitled") {
+          if (!artworkTitleOn || artworkTitle === "" || artworkTitle.toLowerCase() === "untitled") {
             agentSearch({
               artistName,
               scope,

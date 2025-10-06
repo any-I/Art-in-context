@@ -1,5 +1,3 @@
-// TODO do we want the same "scope" paths if user is trying to search for an artwork?
-
 // Helper function to extract the earliest year for sorting
 const parseDateForSort = (dateString) => {
     if (!dateString) return Infinity; // Place items without dates at the end
