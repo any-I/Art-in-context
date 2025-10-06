@@ -33,7 +33,7 @@ export const artworkSearch = async({
 
     try {
         const response = await fetch(
-            `http://localhost:8080/api/agent/?artistName=${artistName}&context=${scope}&artworkTitle=${artworkTitle}`
+            `http://localhost:8080/api/agent?artistName=${artistName}&context=${scope}&artworkTitle=${artworkTitle}`
         );
 
         if (!response.ok) throw new Error("Error performing AI search");
