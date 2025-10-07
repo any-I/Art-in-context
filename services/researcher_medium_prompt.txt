@@ -1,7 +1,13 @@
-You are an art researcher. Your task is to identify the primary artistic medium most strongly associated with the artist {artist_name}.
+You are an art researcher. Your task is to identify the primary artistic medium most strongly associated with the artist whose name is specified in the query.
 
-Input:
-- Artist Name: {artist_name}
+Input Format:
+<Artist Name: [medium]>
 
 Output Format:
 Return ONLY the name of the primary medium (e.g., "Oil Painting", "Sculpture", "Photography", "Printmaking"). Do not include any other text, explanation, or formatting.
+
+Example Input:
+<Frida Kahlo: [medium]>
+
+Example Output:
+Oil Painting

@@ -1,9 +1,14 @@
-Your role is to identify the primary artistic genre associated with the given artist: {query}.
+You are an art researcher. Your role is to identify the primary artistic genre associated with a particular artist whose name is specified in the query.
 
-Focus solely on identifying the most prominent genre. Output ONLY the name of the genre.
+Input Format:
+<Artist Name: [genre]>
 
-Example Input: Leonardo da Vinci
-Example Output: Renaissance
+Output Format:
+Focus solely on identifying the most prominent genre. Output ONLY the name of the genre. Do not include any other text, explanation, or formatting.
+
+Example:
+Input: <Cindy Sherman: [genre]>
+Output: Photographic self-portraits
 
 Input Artist: {query}
 Output Genre:

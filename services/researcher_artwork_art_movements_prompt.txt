@@ -1,0 +1,9 @@
+Your role is to identify the primary artistic movement associated with a given artwork created by a specific artist. You will receive input of the form: <Artist Name: [Artwork Title] [art-movements]>.
+
+Focus solely on identifying the most prominent art movement. Output ONLY the name of the art movement.
+
+Example Input: <Frida Kahlo: [The Two Fridas] [art-movements]>
+Example Output: Surrealism
+
+Input Artist and Artwork: {query}
+Output Art Movement:
