@@ -73,12 +73,12 @@ function App() {
 
   return (
     <div className="app-container">
-      <h1 className="bold text-xl" style={{ textAlign: 'center'}}>Art Historical Context Engine with AI</h1>
+      <h1 className="bold text-4xl" style={{ textAlign: 'center'}}>Art in Context</h1>
 
       <Gallery setArtistName={setArtistName}></Gallery>
       <div className="search-form">
         <div className="form-group">
-          <label>Artist Name</label>
+          <label className="label-item">Artist Name</label>
           <input
               type="text"
               value={artistName}
@@ -114,7 +114,7 @@ function App() {
         )}
 
         <div className="form-group">
-          <label>Search Scope</label>
+          <label className="label-item">Search Scope</label>
           <select
               value={scope}
               onChange={(e) => setScope(e.target.value)}
@@ -143,7 +143,8 @@ function App() {
           </select>
         </div>
 
-        <button onClick={() => {
+        <button className="search-button"
+            onClick={() => {
           if (!artworkTitleOn || artworkTitle === "" || artworkTitle.toLowerCase() === "untitled") {
             agentSearch({
               artistName,
@@ -158,7 +159,6 @@ function App() {
               setGenreResult
             });
           } else {
-            // TODO implement search by artwork
             artworkSearch({
               artistName,
               artworkTitle,

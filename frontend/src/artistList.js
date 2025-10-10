@@ -42,7 +42,6 @@ const artistData = [
     { name: 'Marina Abramović', img: '../images/MarinaAbramovic.jpg' },
     { name: 'David Hammons', img: '../images/DavidHammons.jpg' },
     { name: 'Xu Bing', img: '../images/XuBing.jpg' },
-    { name: 'Tomma Abts', img: '../images/TommaAbts.jpg' },
     { name: 'Gabriel Orozco', img: '../images/GabrielOrozco.jpg' },
     { name: 'Banksy', img: '../images/Banksy.jpg' },
     { name: 'Seydou Keïta', img: '../images/SeydouKeita.jpg' },
