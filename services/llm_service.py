@@ -204,7 +204,7 @@ agents = [
     ToolCallingAgent(
         tools=[rate_limited_search_tool, PythonInterpreterTool()],
         model=openAIModel,
-        max_steps=5
+        max_steps=6
     ), # researcher
     ToolCallingAgent(
         tools=[PythonInterpreterTool()],

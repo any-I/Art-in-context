@@ -14,7 +14,7 @@ Return ONLY a structured, numbered list of significant events in the history of 
 1.  **Year(s):** The specific year or range of years for the event in YYYY or YYYY-YYYY format (e.g., "1888", "1905-1907").
 2.  **Event Title:** A concise description of the event (e.g., 'Invention of the Daguerreotype')
 3.  **Location:** The city, region, or country where the event primarily occurred, if known (e.g. 'Paris, France)
-4.  **Description of Event:** A paragraph explaining the event and, crucially, discussing its significance to the development of the medium.
+4.  **Description of Event:** A paragraph explaining the event and, crucially, discussing its significance to the development of the medium. If there is any significant artwork related to the event, include its title and enclose it with ++ (e.g. ++The Persistence of Memory++)
 5.  **Source:** Cite the source URL where you found the information.
 
 ## Example 
