@@ -109,7 +109,6 @@ function App() {
   const [isLoading, setIsLoading] = useState(false); // State for loading status
   const [loadingTime, setLoadingTime] = useState(0); // State for loading time
   const [mapMarkers, setMapMarkers] = useState([]); // State for processed map markers
-  const [genreResult, setGenreResult] = useState(''); // New state for Genre scope
   const timerRef = useRef(null); // Ref to store timer interval ID
   const [artworkTitleOn, setArtworkTitleOn] = useState(false); // State for artwork search activated
   const [artworkTitle, setArtworkTitle] = useState(""); // State for artwork search input
@@ -206,8 +205,7 @@ function App() {
             setTimelineData,
             setNetworkData,
             setError,
-            setActiveTimelineScope,
-            setGenreResult
+            setActiveTimelineScope
           );
         }}>
           Search</button>
@@ -221,14 +219,6 @@ function App() {
       )}
 
       {error && <div className="error-message">Error: {error}</div>}
-
-      {/* Genre Result Display (New) */}
-      {genreResult && scope === 'Genre' && (
-        <div className="genre-result result-box"> 
-          <h2>{getListTitle(scope)}</h2> 
-          <p><strong>{artistName}</strong> is associated with the genre: <strong>{genreResult}</strong></p>
-        </div>
-      )}
 
       {/* timeline stuff */}
       {timelineData.length > 0 && (

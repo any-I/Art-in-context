@@ -63,8 +63,7 @@ export const performSearch = async (  searchParams,
                                       setTimelineData,
                                       setNetworkData,
                                       setError,
-                                      setActiveTimelineScope,
-                                      setGenreResult
+                                      setActiveTimelineScope
                                   ) => {
     setIsLoading(true);
     setLoadingTime(0);
@@ -81,7 +80,6 @@ export const performSearch = async (  searchParams,
     setNetworkData([]); // Clear network data on new search
     setError(null);
     setActiveTimelineScope(''); // Clear active scope indicator
-    setGenreResult(''); // Reset genre result
 
     try {
         // Check that required scope and artistName keys are in searchParams
@@ -139,7 +137,6 @@ export const performSearch = async (  searchParams,
         setError(err.message || "Failed to perform AI search");
         setTimelineData([]);
         setNetworkData([]);
-        setGenreResult('');
     }
     finally {
         setIsLoading(false);
