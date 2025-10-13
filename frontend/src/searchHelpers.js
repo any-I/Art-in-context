@@ -84,7 +84,8 @@ export const performSearch = async (  searchParams,
     try {
         // Check that required scope and artistName keys are in searchParams
         // and throw if not
-        if(!("scope" in searchParams) || !("artistName" in searchParams)){
+        if(!("scope" in searchParams) || !("artistName" in searchParams) ||
+            searchParams["scope"] === "" || searchParams["artistName"] === ""){
             throw new Error("Expected scope and artist name to be defined in search");
         }
 

@@ -68,9 +68,9 @@ const scopeInfo = new Map([
 ]);
 
 function getListTitle(scope){
-  if(scope in scopeInfo){
-    const titleKey = "output-title" in scopeInfo[scope] ? "output-title":"name";
-    return scopeInfo[scope][titleKey];
+  if(scopeInfo.has(scope)){
+    const titleKey = "output-title" in scopeInfo.get(scope) ? "output-title":"name";
+    return scopeInfo.get(scope)[titleKey];
   }
   return "";
 }
