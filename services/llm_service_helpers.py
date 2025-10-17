@@ -23,19 +23,19 @@ class RateLimitedSearchTool(DuckDuckGoSearchTool):
     def forward(self, query):
         if self.call_count >= SEARCH_CALL_LIMIT:
             print(f"Search limit hit. Skipping query: {query}")
-            return "No additional searches allowed due to rate limits. Continue to next step and DO NOT ATTEMPT TO SEARCH AGAIN."
+            return "No additional searches allowed due to rate limits. Call the final_answer tool and DO NOT ATTEMPT TO SEARCH AGAIN."
         self.call_count += 1
         try:
             return super().forward(query)
         except Exception as e:
             print(e)
-            return "Could not search. Continue to the next step and DO NOT ATTEMPT TO SEARCH AGAIN."
+            return "Could not search. Call the final_answer tool and DO NOT ATTEMPT TO SEARCH AGAIN."
     def reset(self):  # Reset after each full query cycle
         self.call_count = 0
 
 #### PARSING HELPERS
 class JSONParser:
-    # static members of patterns?
+    # patterns to search for - the start of a new entry, a <label>: <info> field, and a URL pattern
     obj_start_re = re.compile(r"\s*\d+\.")
     obj_field_re = re.compile(r"\s*(?:\d+\.)?\s*\*{0,2}([^:']+):?\*{0,2}\s*(.+)")
     url_re = re.compile(r"(?:https?:\/\/)?(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b([-a-zA-Z0-9()@:%_\+.~#?&//=\-]*)")

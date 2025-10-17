@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 import os
 import openai
 from pydantic import BaseModel
+from typing import Optional
 from huggingface_hub import login
 from smolagents import ToolCallingAgent, OpenAIServerModel, PythonInterpreterTool
 # for images:
@@ -34,11 +35,13 @@ openAIModel = OpenAIServerModel(
     api_key = OPENAI_API_KEY
 )
 
-### Set up for AGENTS ###
+### Set up for handling different scopes ###
 
 # Mapping each scope (as requested via calls to the API) to:
 #   a) the prompt file names corresponding to the scope (if there are multiple prompts, they will be run in
 #      sequence on the list of agents defined further below, passing the result of one prompt to the next)
+#      "prompts" contain the prompts for the artist name only, while "artwork_prompts" contains prompts for 
+#       queries including artwork titles and artwork names
 #   b) the type of output the scope is expected to return, either "event" for timeline events or "network" for
 #      artist network data - this determines which parser is used to parse the output
 #   c) the human-readable version of the scope to be printed in error messages, logging messages, etc.
@@ -47,85 +50,96 @@ openAIModel = OpenAIServerModel(
 scope_info = {
     "political-events": {
         "prompts": ["researcher_prompt"],
+        "artwork_prompts": ["researcher_artwork_prompt"],
         "prompt_files": [],
+        "artwork_prompt_files": [],
         "output_parse_type": "event",
         "name": "Political / historical"
     },
     "artist-network": {
         "prompts": ["researcher_network_prompt", "historian_network_prompt"],
+        "artwork_prompts": [], # artwork title not supported for this scope
         "prompt_files": [],
+        "artwork_prompt_files": [],
         "output_parse_type": "network",
         "name": "Artist network"
     },
     "art-movements": {
         "prompts": ["researcher_art_movements_prompt"],
+        "artwork_prompts": ["researcher_artwork_art_movements_prompt", "historian_art_movements_prompt"],
         "prompt_files": [],
+        "artwork_prompt_files": [],
         "output_parse_type": "event",
         "name": "Art movement"
     },
     "personal-events": {
         "prompts": ["researcher_personal_events_prompt"],
+        "artwork_prompts": ["researcher_artwork_personal_events_prompt"],
         "prompt_files": [],
+        "artwork_prompt_files": [],
         "output_parse_type": "event",
         "name": "Personal event"
     },
     "economic-events": {
         "prompts": ["researcher_economic_events_prompt"],
+        "artwork_prompts": ["researcher_artwork_economic_events_prompt"],
         "prompt_files": [],
+        "artwork_prompt_files": [],
         "output_parse_type": "event",
         "name": "Economic event"
     },
     "genre": {
         "prompts": ["researcher_genre_prompt", "historian_genre_prompt"],
+        "artwork_prompts": ["researcher_artwork_genre_prompt", "historian_genre_prompt"],
         "prompt_files": [],
+        "artwork_prompt_files": [],
         "output_parse_type": "event",
         "name": "Genre"
     },
     "medium": {
         "prompts": ["researcher_medium_prompt", "historian_medium_prompt"],
+        "artwork_prompts": ["researcher_artwork_medium_prompt", "historian_medium_prompt"],
         "prompt_files": [],
+        "artwork_prompt_files": [],
         "output_parse_type": "event",
         "name": "Medium"
     },
     # will never be called in an API request, but used as a fallback if an unrecognized scope is requested
     "default": {
         "prompts": ["researcher_prompt"],
+        "artwork_prompts": ["researcher_artwork_prompt"],
         "prompt_files": [],
+        "artwork_prompt_files": [],
         "output_parse_type": "event",
         "name": "Political / historical (DEFAULT)"
     }
 }
 
-# loading the corresponding prompt files for each scope
-for scope, info in scope_info.items():
+# Helper to load a list of files into a target_key in the scope info structure
+# given a list of the file names in info[source_key]
+def load_prompt_files(info: dict[str, any], target_key: str, source_key: str):
     try:
         # loop through all prompt names and try to open their corresponding files, 
         # appending them to the prompt_files list in scope info
-        for prompt in info["prompts"]:
+        for prompt in info[source_key]:
             newFile = open(prompt + ".txt", "r", encoding="utf-8").read()
-            info["prompt_files"].append(newFile) 
+            info[target_key].append(newFile) 
     except FileNotFoundError:
         # on error, set prompt_files to empty list and print warning
-        info["prompt_files"] = []
+        info[target_key] = []
         prompt_name = info["name"]
-        print("Warning: " + prompt_name + " prompt files not found. " + prompt_name + " scope may not function correctly.")
+        print("Warning: " + prompt_name + " prompt files (for: " + target_key + ") not found. " + prompt_name + " scope may not function correctly.")
 
-# construct rate-limited search tool and agents to be used across scopes
-rate_limited_search_tool = helpers.RateLimitedSearchTool()
-agents = [
-    ToolCallingAgent(
-        tools=[rate_limited_search_tool, PythonInterpreterTool()],
-        model=openAIModel,
-        max_steps=5
-    ), # researcher
-    ToolCallingAgent(
-        tools=[PythonInterpreterTool()],
-        model=openAIModel,
-        max_steps=4
-    ) # historian
-]
+# loading the corresponding prompt files for each scope
+for scope, info in scope_info.items():
+    load_prompt_files(info, "prompt_files", "prompts")
+    load_prompt_files(info, "artwork_prompt_files", "artwork_prompts")
 
-# construct parsers to take structured output and convert it to specific JSON objects
+### Set up for parsing different scope output types ###
+
+# Construct parsers to take structured output and convert it to specific JSON objects
+# These will be referenced in the scope info below to indicate which how each scope's output
+# should be parsed
 event_parser = helpers.JSONParser(
     {
         "year": "date",
@@ -171,101 +185,129 @@ network_parser = helpers.JSONParser(
         "connection_score": lambda num: min(max(int(num), 1), 10)
     }
 ) 
+output_types = {
+    "event": {
+        "parser": event_parser,
+        "return_key": "timelineEvents"
+    },
+    "network": {
+        "parser": network_parser,
+        "return_key": "networkData"
+    }
+}
 
-### Request Format Classes ###
+### Set up for agents ###
 
-class SummarizeRequest(BaseModel):
-    artistName: str
-    events: list # containing {'title':'...', 'snippet':'...'} elements
+# construct rate-limited search tool and agents to be used across scopes
+rate_limited_search_tool = helpers.RateLimitedSearchTool()
+agents = [
+    ToolCallingAgent(
+        tools=[rate_limited_search_tool, PythonInterpreterTool()],
+        model=openAIModel,
+        max_steps=5
+    ), # researcher
+    ToolCallingAgent(
+        tools=[PythonInterpreterTool()],
+        model=openAIModel,
+        max_steps=4
+    ) # historian
+]
+
+### Request Format Class ###
 
 class AgentsRequest(BaseModel):
     artistName: str
+    artworkTitle: Optional[str] = None
     context: list
 
+### Main Logic for Endpoint ###
 
-### ENDPOINTS ###
+# Main function to run agents given a specific query string and the name of the key
+# in scope_info containing the prompt files to run
+# Returns the resultsas well as the type that it should be parsed as (handing it off to
+# calling code to process it accordingly)
+def query_agents(scope: str, query: str, prompt_files_key: str):
+    # reset rate-limited search tool on each run
+    rate_limited_search_tool.reset()
 
-@app.post("/summarize")
-def summarize_events(request: SummarizeRequest):
-    # Build string of event titles & snippets
-    events_text = [event['title'] + ": " + event.get("snippet", "") for event in request.events]
-    events_string = "\n".join(events_text)
+    # attempt to find target scope - falling back to default if unrecognized
+    target_scope = scope 
+    if scope not in scope_info or len(scope_info[target_scope][prompt_files_key]) == 0:
+        target_scope = "default" 
+        print(f"Warning: Scope '{scope}' not explicitly handled. Using default prompt(s).")
+            
+    # run agents on as many prompts as is specified (some scopes have 1, some scopes have 2),
+    # passing in the result from the previous step
+    result = query
+    for index, prompt in enumerate(scope_info[target_scope][prompt_files_key]):
+        print(f"Running agent with prompt #{index + 1} for scope {target_scope}")
+        current_agent = agents[index]
+        current_agent.prompt_templates["system_prompt"] = prompt
+        result = current_agent.run(result)
+    
+    # return output type and result string
+    return result, scope_info[target_scope]["output_parse_type"]
 
-    try:
-        response = openAIClient.chat.completions.create(
-            model="gpt-4-turbo",
-            messages=[
-                {"role": "system", "content": f"Summarize how the historical events influenced {request.artistName}'s work in a single concise paragraph. Avoid listing events separately. Maintain historical accuracy and neutrality."},
-                {"role": "user", "content": events_string}
-            ]
-        )
-        return {"summary": response.choices[0].message.content}
-    except Exception as e:
-        return {"summary": "Error generating summary."}
+# Helper function to parse a result string with a given parse type, raising a runtime error
+# if the parsed result is not valid or if the parser type is unrecognized, and returning the 
+# results otherwise
+def parse_into_list(result_str: str, output_type: str):
+    if output_type not in output_types:
+        raise RuntimeError("No corresponding parser for this output type")
+    parser = output_types[output_type]["parser"]
+    parsed_list = parser.parse(result_str)
+    is_valid, error_message = parser.validate_parsed(parsed_list)
+    if not is_valid:
+        raise RuntimeError("Error parsing AI response for data (" + error_message + ")")
+    return parsed_list
+
+# Helper function to additionally process an event list by searching for artworks referenced
+# within an event; modifies the event list in-place so doesn't return it
+def find_artworks_for_events(event_list: list[dict[str, any]], artist_name: str):
+    for event in event_list:
+        if "related_artwork" in event:
+            artwork_title = event["related_artwork"]
+            if len(artwork_title) > 0 and artwork_title != "<none>":
+                image_url = helpers.get_artwork_image(artwork_title, artist_name, GOOGLE_API_KEY, GOOGLE_CSE_ID)
+                event["artwork_image_url"] = image_url
+            else:
+                event["artwork_image_url"] = None 
+            del event["related_artwork"] # once done, remove this key from event
+
+### ENDPOINT(S) ###
 
 @app.post("/agent")
 def run_agents(request: AgentsRequest):
-    print(AgentsRequest)
     # Ensure context is a list and not empty before accessing
     if not request.context or not isinstance(request.context, list):
         raise HTTPException(status_code=400, detail="Invalid context provided. Expected a non-empty list.")
-        
+    
+    # Construct query string, which is of the form <Artist Name: [artwork title] [scope]>
+    # or, if no artwork title is provided, <Artist Name: [scope]>
     scope = request.context[0] # Get the primary scope
-    query_string = "<" + request.artistName + ": [" + ", ".join(request.context) + "]>"
+    query_string = "<" + request.artistName + ": "
+    if(request.artworkTitle):
+        query_string += "[" + request.artworkTitle + "] "
+    query_string += "[" + ", ".join(request.context) + "]>"
+
     print(f"Running agents for scope: {scope}")
     print(f"Query string: {query_string}")
 
     try:
-        rate_limited_search_tool.reset()
+        # query the agents for a result list + the type which it should be parsed as
+        # we use artwork-title-specific prompts if the request provides the artwork title, and otherwise
+        # use a more general prompt only taking into consideration the artist name
+        prompt_files_key = "artwork_prompt_files" if request.artworkTitle else "prompt_files"
+        result_str, parse_type = query_agents(scope, query_string, prompt_files_key)
 
-        # get "target scope" - if scope is in scope_info and has a non-empty prompt file list,
-        # use the given prompt; otherwise default to the "default" scope and its prompt
-        target_scope = scope 
-        if scope not in scope_info or len(scope_info[target_scope]["prompt_files"]) == 0:
-            target_scope = "default" 
-            print(f"Warning: Scope '{scope}' not explicitly handled or network prompts missing. Using default prompt(s).")
-            
-        # run agents on as many prompts as is specified (some scopes have 1, some scopes have 2),
-        # passing in the result from the previous step
-        result = query_string
-        for index, prompt in enumerate(scope_info[target_scope]["prompt_files"]):
-            print(f"Running agent with prompt #{index + 1} for scope {target_scope}")
-            current_agent = agents[index]
-            current_agent.prompt_templates["system_prompt"] = prompt
-            result = current_agent.run(result)
-            
-        # parse and return the final result - either an event result or a network result
-        # handle event results
-        if scope_info[target_scope]["output_parse_type"] == "event":
-            event_list = event_parser.parse(result)
-            is_valid, error_message = event_parser.validate_parsed(event_list)
-            if not is_valid:
-                raise RuntimeError("Error parsing AI response for event data (" + error_message + ")")
-                
-            # if valid, also do artwork search for events in the list
-            if len(event_list) > 0 and "related_artwork" in event_list[0]:
-                for event in event_list:
-                    artwork_title = event["related_artwork"]
-                    if len(artwork_title) > 0 and artwork_title != "<none>":
-                        image_url = helpers.get_artwork_image(artwork_title, request.artistName, GOOGLE_API_KEY, GOOGLE_CSE_ID)
-                        event["artwork_image_url"] = image_url
-                    else:
-                        event["artwork_image_url"] = None 
-                    del event["related_artwork"] # once done, remove this key from event
-
-            # return response
-            response_data = {"timelineEvents": event_list}
-            return response_data
-            
-        # handle network results
-        elif scope_info[target_scope]["output_parse_type"] == "network":
-            network_list = network_parser.parse(result)
-            is_valid, error_message = network_parser.validate_parsed(network_list)
-            if not is_valid:
-                raise RuntimeError("Error parsing AI response for network data (" + error_message + ")")
-            else:
-                response_data = {"networkData": network_list}
-                return response_data
+        # parse the result string, and if it contains events, search for artworks within it
+        result_list = parse_into_list(result_str, parse_type)
+        if(parse_type == "event"):
+            find_artworks_for_events(result_list, request.artistName)
+        
+        # return a dictionary with a key depending on the type of data being returned
+        response_key = output_types[parse_type]["return_key"]
+        return { response_key: result_list }
 
     except HTTPException as http_err:
         # Re-raise HTTP exceptions to be handled by FastAPI
