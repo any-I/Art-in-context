@@ -4,6 +4,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Value;
@@ -41,6 +42,12 @@ public class AppController {
 
         try {
             RestTemplate restTemplate = new RestTemplate();
+            // TODO maybe remove this?
+            SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+            factory.setConnectTimeout(120000);
+            factory.setReadTimeout(120000);
+            restTemplate.setRequestFactory(factory);
+            //
 
             JSONObject pythonServiceRequest = new JSONObject();
             pythonServiceRequest.put("artistName", artistName);
@@ -52,12 +59,19 @@ public class AppController {
             }
 
             String llmServiceURL = pythonServiceUrl + "/agent";
+            System.out.println("Calling Python service at: " + llmServiceURL);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<String> entity = new HttpEntity<>(pythonServiceRequest.toString(), headers);
 
+            long startTime = System.currentTimeMillis();
             ResponseEntity<String> response = restTemplate.postForEntity(llmServiceURL, entity, String.class);
+            long endTime = System.currentTimeMillis();
+
+            System.out.println("Got response from Python in " + (endTime - startTime) + "ms");
+            System.out.println("Response status: " + response.getStatusCode());
+            System.out.println("Response body preview: " + response.getBody().substring(0, Math.min(200, response.getBody().length())));
             return response;
         } catch (Exception e) {
             return ResponseEntity.badRequest().body(new JSONObject()
