@@ -99,7 +99,6 @@ export const performSearch = async (  searchParams,
 
         let searchUrl = `${baseUrl}/api/agent?artistName=${artistName}&context=${scope}`;
 
-        let searchUrl = `http://localhost:8080/api/agent?artistName=${artistName}&context=${scope}`;
         if("artworkTitle" in searchParams){
             searchUrl += "&artworkTitle=" + searchParams.artworkTitle;
         }
