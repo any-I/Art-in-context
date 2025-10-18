@@ -96,7 +96,7 @@ export const performSearch = async (  searchParams,
               process.env.NODE_ENV === "production"
             ? "https://art-in-context.onrender.com"
             : "http://localhost:8080";
-
+        console.log(baseURL);
         let searchUrl = `${baseUrl}/api/agent?artistName=${artistName}&context=${scope}`;
 
         if("artworkTitle" in searchParams){
