@@ -21,7 +21,8 @@ import java.util.UUID;
 @RequestMapping("/api")
 
 public class AppController {
-    private static final String PYTHON_SERVICE_URL = "http://localhost:5001";
+    @Value("${PYTHON_SERVICE_URL:http://localhost:5001}")
+    private String pythonServiceUrl;
 
     @GetMapping("/agent")
     public ResponseEntity<String> searchWithAgents(
@@ -49,7 +50,7 @@ public class AppController {
                 pythonServiceRequest.put("artworkTitle", artworkTitle);
             }
 
-            String llmServiceURL = PYTHON_SERVICE_URL + "/agent";
+            String llmServiceURL = pythonServiceUrl + "/agent";
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
