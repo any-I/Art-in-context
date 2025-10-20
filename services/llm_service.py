@@ -277,7 +277,7 @@ def find_artworks_for_events(event_list: list[dict[str, any]], artist_name: str)
 ### ENDPOINT(S) ###
 
 # health check endpoint for deploymnet
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 def root():
     return {"status": "ok", "service": "llm_service"}
 
