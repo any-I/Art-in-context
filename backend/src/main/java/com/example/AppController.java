@@ -24,7 +24,6 @@ import java.util.UUID;
 public class AppController {
     @Value("${PYTHON_SERVICE_URL:http://localhost:5001}")
     private String pythonServiceUrl;
-    System.out.println(pythonServiceUrl);
 
     @GetMapping("/agent")
     public ResponseEntity<String> searchWithAgents(
@@ -32,6 +31,7 @@ public class AppController {
             @RequestParam String context,
             @RequestParam(required=false) String artworkTitle
     ) {
+        System.out.println(pythonServiceUrl);
         boolean artworkTitleExists = false;
         if(artworkTitle == null || artworkTitle.isBlank()){
             System.out.println("/agent: " + artistName + ", " + context);
