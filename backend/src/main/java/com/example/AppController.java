@@ -25,6 +25,11 @@ public class AppController {
     @Value("${PYTHON_SERVICE_URL:http://localhost:5001}")
     private String pythonServiceUrl;
 
+    @RequestMapping(value = "/", method = {RequestMethod.GET, RequestMethod.HEAD})
+    public ResponseEntity<String> healthCheck() {
+        return ResponseEntity.ok("Java backend is running");
+    }
+
     @GetMapping("/agent")
     public ResponseEntity<String> searchWithAgents(
             @RequestParam String artistName,
@@ -72,7 +77,7 @@ public class AppController {
             System.out.println("Got response from Python in " + (endTime - startTime) + "ms");
             System.out.println("Response status: " + response.getStatusCode());
             System.out.println("Response body preview: " + response.getBody().substring(0, Math.min(200, response.getBody().length())));
-            return ResponseEntity.status(response.getStatusCode()) .body(response.getBody());        
+            return ResponseEntity.status(response.getStatusCode()).body(response.getBody());        
         } 
         catch (Exception e) {
             return ResponseEntity.badRequest().body(new JSONObject()
