@@ -18,13 +18,13 @@ import java.util.regex.Pattern;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 
-@CrossOrigin(origins = "*")
+// @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api")
-
 public class AppController {
     @Value("${PYTHON_SERVICE_URL:http://localhost:5001}")
     private String pythonServiceUrl;
+    System.out.println(pythonServiceUrl);
 
     @GetMapping("/agent")
     public ResponseEntity<String> searchWithAgents(
@@ -72,8 +72,9 @@ public class AppController {
             System.out.println("Got response from Python in " + (endTime - startTime) + "ms");
             System.out.println("Response status: " + response.getStatusCode());
             System.out.println("Response body preview: " + response.getBody().substring(0, Math.min(200, response.getBody().length())));
-            return response;
-        } catch (Exception e) {
+            return ResponseEntity.status(response.getStatusCode()) .body(response.getBody());        
+        } 
+        catch (Exception e) {
             return ResponseEntity.badRequest().body(new JSONObject()
                     .put("error", "Error searching with agents: " + e.getMessage()).toString());
         }
