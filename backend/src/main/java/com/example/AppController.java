@@ -4,8 +4,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpEntity;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.beans.factory.annotation.Value;
 import org.json.JSONObject;
 import org.apache.catalina.valves.JsonAccessLogValve;
 import org.json.JSONArray;
@@ -16,12 +18,17 @@ import java.util.regex.Pattern;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 
-@CrossOrigin(origins = "*")
+// @CrossOrigin(origins = "*")
 @RestController
 @RequestMapping("/api")
-
 public class AppController {
-    private static final String PYTHON_SERVICE_URL = "http://localhost:5001";
+    @Value("${PYTHON_SERVICE_URL:http://localhost:5001}")
+    private String pythonServiceUrl;
+
+    @RequestMapping(value = "/", method = {RequestMethod.GET, RequestMethod.HEAD})
+    public ResponseEntity<String> healthCheck() {
+        return ResponseEntity.ok("Java backend is running");
+    }
 
     @GetMapping("/agent")
     public ResponseEntity<String> searchWithAgents(
@@ -29,6 +36,7 @@ public class AppController {
             @RequestParam String context,
             @RequestParam(required=false) String artworkTitle
     ) {
+        System.out.println(pythonServiceUrl);
         boolean artworkTitleExists = false;
         if(artworkTitle == null || artworkTitle.isBlank()){
             System.out.println("/agent: " + artistName + ", " + context);
@@ -39,6 +47,12 @@ public class AppController {
 
         try {
             RestTemplate restTemplate = new RestTemplate();
+            // TODO maybe remove this?
+            SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+            factory.setConnectTimeout(120000);
+            factory.setReadTimeout(120000);
+            restTemplate.setRequestFactory(factory);
+            //
 
             JSONObject pythonServiceRequest = new JSONObject();
             pythonServiceRequest.put("artistName", artistName);
@@ -49,15 +63,23 @@ public class AppController {
                 pythonServiceRequest.put("artworkTitle", artworkTitle);
             }
 
-            String llmServiceURL = PYTHON_SERVICE_URL + "/agent";
+            String llmServiceURL = pythonServiceUrl + "/agent";
+            System.out.println("Calling Python service at: " + llmServiceURL);
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             HttpEntity<String> entity = new HttpEntity<>(pythonServiceRequest.toString(), headers);
 
+            long startTime = System.currentTimeMillis();
             ResponseEntity<String> response = restTemplate.postForEntity(llmServiceURL, entity, String.class);
-            return response;
-        } catch (Exception e) {
+            long endTime = System.currentTimeMillis();
+
+            System.out.println("Got response from Python in " + (endTime - startTime) + "ms");
+            System.out.println("Response status: " + response.getStatusCode());
+            System.out.println("Response body preview: " + response.getBody().substring(0, Math.min(200, response.getBody().length())));
+            return ResponseEntity.status(response.getStatusCode()).body(response.getBody());        
+        } 
+        catch (Exception e) {
             return ResponseEntity.badRequest().body(new JSONObject()
                     .put("error", "Error searching with agents: " + e.getMessage()).toString());
         }
