@@ -2,14 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "ProximaNova"; /* Choose a name for your font */
+  src: local("ProximaNova"), url("./fonts/Proxima Nova/proximanova_black.otf") format("opentype");
+  font-weight: normal;
+  font-style: normal;
+}
+
+@font-face {
+  font-family: "ProximaNovaLight"; /* Choose a name for your font */
+  src: local("ProximaNovaLight"), url("./fonts/Proxima Nova/proximanova_light.otf") format("opentype");
+  font-style: normal;
+}
+
+body {
+  background-color: #5C1E1A; /* Maroon background */
+  padding: 1rem; /* Space for the outer border */
+  margin: 0;
+  font-family: 'ProximaNovaLight', serif;
+}
+
 .app-container {
-  max-width: 66.666%;
+  max-width: 75%;
   margin: 2rem auto;
-  padding: 0 1rem;
+  padding: 2rem 1rem;
+  background-color: white;
+  border: 12px solid #5C1E1A; /* Maroon border around content */
 }
 
 h1 {
   margin-bottom: 2rem;
+  padding: 1.5rem;
+  border: 8px solid #5C1E1A; /* Maroon border around title */
+  background-color: white;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
+  font-family: 'ProximaNova', serif;
+
 }
 
 .search-form {
@@ -24,6 +52,10 @@ h1 {
   gap: 0.5rem;
 }
 
+.label-item {
+  font-family: 'ProximaNova', serif;
+}
+
 input, select {
   padding: 0.5rem;
   border: 1px solid #ccc;
@@ -31,9 +63,15 @@ input, select {
   font-size: 1rem;
 }
 
+.search-button {
+  background-color:#5C1E1A;
+  font-family: 'ProximaNova', serif;
+  font-size: large;
+  border: 0.3vw solid #ecc94b;
+}
+
 button {
   padding: 0.5rem 1rem;
-  background-color: #0066cc;
   color: white;
   border-radius: 4px;
   cursor: pointer;
@@ -41,7 +79,7 @@ button {
 }
 
 button:hover {
-  background-color: #0052a3;
+  background-color: #A44B43;
 }
 
 .error {
