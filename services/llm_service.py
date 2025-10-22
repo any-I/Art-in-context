@@ -276,6 +276,11 @@ def find_artworks_for_events(event_list: list[dict[str, any]], artist_name: str)
 
 ### ENDPOINT(S) ###
 
+# health check endpoint for deploymnet
+@app.api_route("/", methods=["GET", "HEAD"])
+def root():
+    return {"status": "ok", "service": "llm_service"}
+
 @app.post("/agent")
 def run_agents(request: AgentsRequest):
     # Ensure context is a list and not empty before accessing

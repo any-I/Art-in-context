@@ -92,7 +92,13 @@ export const performSearch = async (  searchParams,
         // Extract parameters and construct search url
         const scope = searchParams.scope;
         const artistName = searchParams.artistName;
-        let searchUrl = `http://localhost:8080/api/agent?artistName=${artistName}&context=${scope}`;
+        const baseUrl =
+              process.env.NODE_ENV === "production"
+            ? "https://art-in-context.onrender.com"
+            : "http://localhost:8080";
+        console.log(baseUrl);
+        let searchUrl = `${baseUrl}/api/agent?artistName=${artistName}&context=${scope}`;
+
         if("artworkTitle" in searchParams){
             searchUrl += "&artworkTitle=" + searchParams.artworkTitle;
         }

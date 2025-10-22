@@ -10,3 +10,4 @@ dotenv
 huggingface_hub
 smolagents
 pinecone
+ddgs
