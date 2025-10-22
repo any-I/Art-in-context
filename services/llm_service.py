@@ -262,14 +262,22 @@ def parse_into_list(result_str: str, output_type: str):
     return parsed_list
 
 # Helper function to additionally process an event list by searching for artworks referenced
+# This only occurs for the first appearance of any artwork in an event; if an artwork
+# is referenced by more than one event, we only assign it to the first event
 # within an event; modifies the event list in-place so doesn't return it
 def find_artworks_for_events(event_list: list[dict[str, any]], artist_name: str):
+    artwork_title_set = set()
     for event in event_list:
         if "related_artwork" in event:
             artwork_title = event["related_artwork"]
+            # only process non-blank, non "none" artwork titles
             if len(artwork_title) > 0 and artwork_title != "<none>":
-                image_url = helpers.get_artwork_image(artwork_title, artist_name, GOOGLE_API_KEY, GOOGLE_CSE_ID)
-                event["artwork_image_url"] = image_url
+                # only process first occurrence of an artwork in an event
+                if artwork_title not in artwork_title_set:
+                    image_url = helpers.get_artwork_image(artwork_title, artist_name, GOOGLE_API_KEY, GOOGLE_CSE_ID)
+                    event["artwork_image_url"] = image_url
+                artwork_title_set.add(artwork_title)
+            # set image URL to None so the key exists
             else:
                 event["artwork_image_url"] = None 
             del event["related_artwork"] # once done, remove this key from event
