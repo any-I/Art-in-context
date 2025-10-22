@@ -41,7 +41,7 @@ div, input, button, header {
 
 /*main container with title*/
 .app-container {
-  max-width: 50rem;
+  max-width: 60rem;
   margin: 2rem auto;
   padding: 2rem 1.5rem;
   background-color: white;
@@ -60,6 +60,33 @@ h1#app-title {
   line-height: 2.5rem;
   text-align: center;
   color: var(--main-col);
+}
+
+/*tweaking carousel styling a bit*/
+.slick-track {
+  display: flex !important;
+  flex-direction: row;
+  gap: 0.5rem;
+}
+.slick-track .slick-slide {
+  float: none !important;
+  height: auto !important;
+}
+.slick-track .slick-slide > div {
+  height: 100%;
+  padding-bottom: 0.5rem;
+}
+.artist-carousel-card {
+  height: 100%;
+}
+.artist-carousel-name {
+  margin: 0;
+  padding: 0.5rem;
+  line-height: 1.2;
+}
+.slick-dots { /*carousel dots at the bottom*/
+  position: relative !important;
+  bottom: unset !important;
 }
 
 /*search form styling*/

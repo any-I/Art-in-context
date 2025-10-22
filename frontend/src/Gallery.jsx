@@ -27,17 +27,77 @@ function PrevArrow({ onClick }) {
     );
 }
 
+const carouselBreakpoints = [
+    {
+        breakpoint: 1250,
+        settings: {
+            slidesToShow: 6,
+            slidesToScroll: 3,
+            dots: true
+        }
+    },
+    {
+        breakpoint: 1000,
+        settings: {
+            slidesToShow: 5,
+            slidesToScroll: 2,
+            dots: true
+        }
+    },
+    {
+        breakpoint: 750,
+        settings: {
+            slidesToShow: 4,
+            slidesToScroll: 2,
+            dots: true
+        }
+    },
+    {
+        breakpoint: 600,
+        settings: {
+            slidesToShow: 3,
+            slidesToScroll: 1,
+            dots: false
+        }
+    }, 
+    {
+        breakpoint: 450,
+        settings: {
+            slidesToShow: 2,
+            slidesToScroll: 1,
+            dots: false
+        }
+    },
+    {
+        breakpoint: 375,
+        settings: {
+            slidesToShow: 1,
+            slidesToScroll: 1,
+            dots: false
+        }
+    }
+];
 
+function getInitialCarouselSettings(windowWidth){
+    let ind = 0;
+    while(ind < carouselBreakpoints.length && carouselBreakpoints[ind].breakpoint > windowWidth){
+        ind++;
+    }
+    return carouselBreakpoints[Math.max(0, ind - 1)];
+}
 
 function Gallery( {setArtistName}) {
+    const initSettings = getInitialCarouselSettings(window.innerWidth);
     const settings = {
         dots: true,
         infinite: true,
         speed: 500,
-        slidesToShow: 6,
-        slidesToScroll: 3,
+        slidesToShow: initSettings.settings.slidesToShow,
+        slidesToScroll: initSettings.settings.slidesToScroll,
+        dots: initSettings.settings.dots,
         nextArrow: <NextArrow />,
         prevArrow: <PrevArrow />,
+        responsive: carouselBreakpoints
     };
     return (
         <div className="slider-container pb-5">
@@ -45,7 +105,7 @@ function Gallery( {setArtistName}) {
                 {artistData.map((artist) => (
                     <div
                         onClick={() => {setArtistName(artist.name)}}
-                        className="bg-white w-full max-w-sm text-black rounded-xl cursor-pointer shadow-md overflow-hidden">
+                        className="artist-carousel-card bg-white w-full max-w-sm text-black rounded-xl cursor-pointer shadow-md overflow-hidden">
                         <div className="w-full aspect-[4/5]">
                             <img
                                 src={artist.img}
@@ -54,7 +114,7 @@ function Gallery( {setArtistName}) {
                         </div>
                         <div>
                             <p
-                                className="text-center font-bold mt-1 mb-2.5"
+                                className="artist-carousel-name text-center font-bold mt-1 mb-2.5"
                             >{artist.name}</p>
                             {/*<button*/}
                             {/*    className="text-sm bg-green-800 hover:bg-green-700 mx-auto block mt-3 mb-1"*/}
