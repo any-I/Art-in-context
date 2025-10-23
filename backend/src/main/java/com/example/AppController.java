@@ -1,22 +1,24 @@
 package com.example;
 
-import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.http.HttpHeaders;
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
-import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.beans.factory.annotation.Value;
-import org.json.JSONObject;
-import org.apache.catalina.valves.JsonAccessLogValve;
-import org.json.JSONArray;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.UUID;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
 
 // @CrossOrigin(origins = "*")
 @RestController
@@ -31,59 +33,201 @@ public class AppController {
     }
 
     @GetMapping("/agent")
-    public ResponseEntity<String> searchWithAgents(
-            @RequestParam String artistName,
+    public SseEmitter searchWithAgents(
+        @RequestParam String artistName,
             @RequestParam String context,
             @RequestParam(required=false) String artworkTitle
     ) {
         System.out.println(pythonServiceUrl);
-        boolean artworkTitleExists = false;
-        if(artworkTitle == null || artworkTitle.isBlank()){
+        final boolean artworkTitleExists = artworkTitle != null && !artworkTitle.isBlank();
+        if(!artworkTitleExists){
             System.out.println("/agent: " + artistName + ", " + context);
-        } else {
-            artworkTitleExists = true;
+        }
+        else {
             System.out.println("/agent: " + artistName + ", " + context + ", " + artworkTitle);
         }
 
-        try {
-            RestTemplate restTemplate = new RestTemplate();
-            // TODO maybe remove this?
-            SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-            factory.setConnectTimeout(120000);
-            factory.setReadTimeout(120000);
-            restTemplate.setRequestFactory(factory);
-            //
+        SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
 
-            JSONObject pythonServiceRequest = new JSONObject();
-            pythonServiceRequest.put("artistName", artistName);
-            JSONArray contextArray = new JSONArray(context.split(","));
-            pythonServiceRequest.put("context", contextArray);
+        CompletableFuture.runAsync(() -> {
+            try {
+                WebClient webClient = WebClient.create();
 
-            if (artworkTitleExists){
-                pythonServiceRequest.put("artworkTitle", artworkTitle);
+                JSONObject pythonServiceRequest = new JSONObject();
+                pythonServiceRequest.put("artistName", artistName);
+                JSONArray contextArray = new JSONArray(context.split(","));
+                pythonServiceRequest.put("context", contextArray);
+
+                if (artworkTitleExists){
+                    pythonServiceRequest.put("artworkTitle", artworkTitle);
+                }
+
+                String llmServiceURL = pythonServiceUrl + "/agent";
+                System.out.println("Calling Python service at: " + llmServiceURL);
+
+                webClient
+                    .post()
+                    .uri(llmServiceURL)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .accept(MediaType.TEXT_EVENT_STREAM)
+                    .bodyValue(pythonServiceRequest.toString())
+                    .retrieve()
+                    .bodyToFlux(String.class)
+                    .subscribe(
+                        line -> {
+                            System.out.println("Received line: " + line);
+                            try {
+                                // Handle both SSE format and raw JSON
+                                String jsonData = line.trim();
+                                if (jsonData.startsWith("data: ")) {
+                                    jsonData = jsonData.substring(6).trim();
+                                }
+                                
+                                if (!jsonData.isEmpty() && jsonData.startsWith("{")) {
+                                    System.out.println("Sending to emitter: " + jsonData);
+                                    emitter.send(SseEmitter.event().data(jsonData));
+                                }
+                            } catch (IOException e) {
+                                System.err.println("Error sending to emitter: " + e.getMessage());
+                                emitter.completeWithError(e);
+                            }
+                        },
+                        error -> {
+                            System.err.println("Error in stream: " + error.getMessage());
+                            emitter.completeWithError(error);
+                        },
+                        () -> {
+                            System.out.println("Stream completed successfully");
+                            emitter.complete();
+                        }
+                    );
             }
-
-            String llmServiceURL = pythonServiceUrl + "/agent";
-            System.out.println("Calling Python service at: " + llmServiceURL);
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            HttpEntity<String> entity = new HttpEntity<>(pythonServiceRequest.toString(), headers);
-
-            long startTime = System.currentTimeMillis();
-            ResponseEntity<String> response = restTemplate.postForEntity(llmServiceURL, entity, String.class);
-            long endTime = System.currentTimeMillis();
-
-            System.out.println("Got response from Python in " + (endTime - startTime) + "ms");
-            System.out.println("Response status: " + response.getStatusCode());
-            System.out.println("Response body preview: " + response.getBody().substring(0, Math.min(200, response.getBody().length())));
-            return ResponseEntity.status(response.getStatusCode()).body(response.getBody());        
-        } 
-        catch (Exception e) {
-            return ResponseEntity.badRequest().body(new JSONObject()
-                    .put("error", "Error searching with agents: " + e.getMessage()).toString());
-        }
+            catch (Exception e) {
+                System.err.println("Error setting up stream: " + e.getMessage());
+                emitter.completeWithError(e);
+            }
+        });
+        return emitter;
     }
+
+    // @GetMapping("/agent")
+    // public SseEmitter searchWithAgents(
+    //     @RequestParam String artistName,
+    //     @RequestParam String context
+    // ) {
+    //     System.out.println("/agent: " + artistName + ", " + context);
+    //     SseEmitter emitter = new SseEmitter(Long.MAX_VALUE);
+        
+    //     CompletableFuture.runAsync(() -> {
+    //         try {
+    //             WebClient webClient = WebClient.create();
+
+    //             JSONObject pythonServiceRequest = new JSONObject();
+    //             pythonServiceRequest.put("artistName", artistName);
+    //             JSONArray contextArray = new JSONArray(context.split(","));
+    //             pythonServiceRequest.put("context", contextArray);
+
+    //             String llmServiceURL = PYTHON_SERVICE_URL + "/agent";
+
+    //             webClient
+    //                 .post()
+    //                 .uri(llmServiceURL)
+    //                 .contentType(MediaType.APPLICATION_JSON)
+    //                 .accept(MediaType.TEXT_EVENT_STREAM)
+    //                 .bodyValue(pythonServiceRequest.toString())
+    //                 .retrieve()
+    //                 .bodyToFlux(String.class)
+    //                 .subscribe(
+    //                     line -> {
+    //                         System.out.println("Received line: " + line);
+    //                         try {
+    //                             // Handle both SSE format and raw JSON
+    //                             String jsonData = line.trim();
+    //                             if (jsonData.startsWith("data: ")) {
+    //                                 jsonData = jsonData.substring(6).trim();
+    //                             }
+                                
+    //                             if (!jsonData.isEmpty() && jsonData.startsWith("{")) {
+    //                                 System.out.println("Sending to emitter: " + jsonData);
+    //                                 emitter.send(SseEmitter.event().data(jsonData));
+    //                             }
+    //                         } catch (IOException e) {
+    //                             System.err.println("Error sending to emitter: " + e.getMessage());
+    //                             emitter.completeWithError(e);
+    //                         }
+    //                     },
+    //                     error -> {
+    //                         System.err.println("Error in stream: " + error.getMessage());
+    //                         emitter.completeWithError(error);
+    //                     },
+    //                     () -> {
+    //                         System.out.println("Stream completed successfully");
+    //                         emitter.complete();
+    //                     }
+    //                 );
+    //         } catch (Exception e) {
+    //             System.err.println("Error setting up stream: " + e.getMessage());
+    //             emitter.completeWithError(e);
+    //         }
+    //     });
+        
+    //     return emitter;
+    // }
+
+//    @GetMapping("/agent")
+//     public ResponseEntity<String> searchWithAgents(
+//         @RequestParam String artistName,
+//             @RequestParam String context,
+//             @RequestParam(required=false) String artworkTitle
+//     ) {
+//         System.out.println(pythonServiceUrl);
+//         boolean artworkTitleExists = false;
+//         if(artworkTitle == null || artworkTitle.isBlank()){
+//         System.out.println("/agent: " + artistName + ", " + context);
+//         } else {
+//             artworkTitleExists = true;
+//             System.out.println("/agent: " + artistName + ", " + context + ", " + artworkTitle);
+//         }
+
+//         try {
+//             RestTemplate restTemplate = new RestTemplate();
+//             // TODO maybe remove this?
+//             SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+//             factory.setConnectTimeout(120000);
+//             factory.setReadTimeout(120000);
+//             restTemplate.setRequestFactory(factory);
+//             //
+
+//                 JSONObject pythonServiceRequest = new JSONObject();
+//                 pythonServiceRequest.put("artistName", artistName);
+//                 JSONArray contextArray = new JSONArray(context.split(","));
+//                 pythonServiceRequest.put("context", contextArray);
+
+//             if (artworkTitleExists){
+//                 pythonServiceRequest.put("artworkTitle", artworkTitle);
+//             }
+
+//             String llmServiceURL = pythonServiceUrl + "/agent";
+//             System.out.println("Calling Python service at: " + llmServiceURL);
+
+//             HttpHeaders headers = new HttpHeaders();
+//             headers.setContentType(MediaType.APPLICATION_JSON);
+//             HttpEntity<String> entity = new HttpEntity<>(pythonServiceRequest.toString(), headers);
+
+//             long startTime = System.currentTimeMillis();
+//             ResponseEntity<String> response = restTemplate.postForEntity(llmServiceURL, entity, String.class);
+//             long endTime = System.currentTimeMillis();
+
+//             System.out.println("Got response from Python in " + (endTime - startTime) + "ms");
+//             System.out.println("Response status: " + response.getStatusCode());
+//             System.out.println("Response body preview: " + response.getBody().substring(0, Math.min(200, response.getBody().length())));
+//             return ResponseEntity.status(response.getStatusCode()).body(response.getBody());        
+//                         }
+//         catch (Exception e) {
+//             return ResponseEntity.badRequest().body(new JSONObject()
+//                     .put("error", "Error searching with agents: " + e.getMessage()).toString());
+//             }
+//     }
 
     // private static final String WIKI_API_URL = "https://en.wikipedia.org/w/api.php";
     // private final ConcurrentHashMap<String, JSONArray> politicalEventSearchCache = new ConcurrentHashMap<String, JSONArray>();
