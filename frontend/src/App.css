@@ -145,6 +145,9 @@ button .span-icon {
 
 /*react-chrono specific styling to fix the timeline
   element styling (overrides some default card styling)*/
+[class*="TimelineContentContainer"] { /*ensuring card doesn't overflow on very small screens*/
+  max-width: 100% !important;
+}
 .rc-card {
   border-radius: var(--timeline-radius) !important;
   filter: none !important;
@@ -159,6 +162,18 @@ button .span-icon {
 }
 .rc-card [class*="Header"] {
   padding: 0;
+}
+/*fixing weird bug where an empty header shows up on smaller screens; 
+  this is either a duplicate .CardTitle or a <header> element that appears
+  on media elements*/
+.rc-card [class*="CardTitle"]:first-child,
+.rc-card header:has(+ [class*="MediaWrapper"]) { 
+  display: none;
+}
+/*ensuring if the proper card title is shown*/
+.rc-card [class*="CardTitle"]:last-child,
+.rc-card [class*="CardMediaHeader"] {
+  display: block !important;
 }
 .rc-card [class*="Header"] h1, 
 .rc-card .rc-card-text { /*getting card title + description to align*/
@@ -187,4 +202,38 @@ button .span-icon {
 }
 .rc-card a {
   color: var(--link-col);
+}
+#timeline-container [class*="TimelineMainWrapper"] { /*making timeline less tall*/
+  min-height: 100px !important;
+  margin-bottom: -10px; /*removing some extra space at the bottom because everything is vertically centered*/
+}
+#timeline-container [class*="TimelineMain"],
+#timeline-container [class*="TimelineHorizontalWrapper"],
+#timeline-container [class*="TimelineItemWrapper"]{
+  height: 100% !important;
+}
+
+/*react-chrono-specific styling to hide timeline toolbar
+  except for the arrow buttons*/
+#timeline-container [class*="ToolbarWrapper"] {
+  box-shadow: none !important;
+  width: 100%;
+  padding: 0;
+}
+#timeline-container [class*="ToolbarListItem"] {
+  display: none !important;
+  width: 100%;
+  margin: 0;
+}
+#timeline-container [class*="TimelineControlContainer"],
+#timeline-container [class*="TimelineNavWrapper"] {
+  width: 100%;
+  padding: 0;
+  box-shadow: none;
+}
+#timeline-container [class*="TimelineNavItem"]:nth-child(3) {
+  margin-left: auto;
+}
+#timeline-container [class*="ToolbarListItem"]:first-of-type {
+  display: block !important;
 }

@@ -240,6 +240,7 @@ function App() {
               theme={{
                 primary: 'var(--main-col)',
                 secondary: 'white',
+                toolbarBgColor: 'transparent', 
                 buttonHoverBgColor: 'var(--accent-col)',
                 cardBgColor: 'white', //card styling
                 cardTitleColor: 'var(--main-col)',
