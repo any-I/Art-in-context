@@ -88,6 +88,36 @@ h1#app-title {
   position: relative !important;
   bottom: unset !important;
 }
+.slick-dots li button,
+.slick-dots li button:before { /*general dot styling*/
+  transition: 0.25s ease;
+}
+.slick-dots li button:hover:before,
+.slick-dots li.slick-active button:before { /*active dot styling*/
+  color: var(--main-col) !important;
+}
+.slick-dots li.slick-active button:before {
+  opacity: 1 !important;
+}
+.slick-dots li button:after { /*focus styling; this is the circle around focused dots*/
+  content: "";
+  position: absolute;
+  width: 65%;
+  height: 65%;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  border: 1px solid var(--accent-col);  
+  opacity: 0.75;
+  transform: translate(-50%, calc(-50% - 1px)) scale(0);
+  transition: inherit;
+}
+.slick-dots li button:focus:after {
+  transform: translate(-50%, calc(-50% - 1px)) scale(1);
+}
+.slick-dots li button:focus:before {
+  color: var(--accent-col) !important;
+}
 
 /*search form styling*/
 .search-form {
@@ -184,6 +214,7 @@ button .span-icon {
 }
 .rc-card [class*="Header"] h1 {
   padding-top: 1.5rem;
+  font-family: var(--heading-font);
 }
 .rc-card .rc-card-text {
   padding-bottom: 1.5rem;
@@ -236,4 +267,28 @@ button .span-icon {
 }
 #timeline-container [class*="ToolbarListItem"]:first-of-type {
   display: block !important;
+}
+
+/*map-specific styling*/
+.leaflet-popup-content {
+  font-family: var(--main-font) !important;
+}
+.map-popup-title {
+  font-family: var(--heading-font) !important;
+  color: var(--main-col) !important;
+  margin-bottom: 0rem !important;
+}
+.map-popup-date {
+  font-style: italic;
+  color: var(--dark-text-col);
+  margin: 0 !important;
+}
+.map-popup-description {
+  margin-top: 0.5rem !important;
+  margin-bottom: 0 !important;
+  color: var(--dark-text-col);
+}
+.map-popup-source {
+  margin-left: 0.25rem;
+  color: var(--link-col) !important;
 }

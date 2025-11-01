@@ -48,7 +48,8 @@ const getTransformedTimelineEvents = (data) => {
             }
         } : undefined,
         latitude: event.latitude,
-        longitude: event.longitude
+        longitude: event.longitude,
+        source_url: event.source_url
     }));
 
     // Sort chronologically based on the earliest year found in the date

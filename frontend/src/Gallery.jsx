@@ -9,7 +9,15 @@ function NextArrow({ onClick }) {
     return (
         <div
             onClick={onClick}
-            className="flex items-center justify-center bg-yellow-500 rounded-full w-10 h-10 cursor-pointer hover:bg-yellow-400 absolute top-1/2 right-4 transform -translate-y-1/2 z-10"
+            onKeyUp={(e) => {
+                if(e.key === "Enter"){
+                    onClick();
+                }
+            }}
+            tabIndex={0}
+            aria-label = {"Carousel previous arrow"}
+            role="button"
+            className="flex items-center justify-center bg-yellow-500 rounded-full w-10 h-10 cursor-pointer hover:bg-yellow-400 absolute top-1/2 right-4 transform -translate-y-1/2 z-10 transition duration-250 ease"
         >
             <FaChevronRight className="text-white text-lg" />
         </div>
@@ -20,7 +28,15 @@ function PrevArrow({ onClick }) {
     return (
         <div
             onClick={onClick}
-            className="flex items-center justify-center bg-yellow-500 rounded-full w-10 h-10 cursor-pointer hover:bg-yellow-400 absolute top-1/2 left-4 transform -translate-y-1/2 z-10"
+            onKeyUp={(e) => {
+                if(e.key === "Enter"){
+                    onClick();
+                }
+            }}
+            tabIndex={0}
+            aria-label={"Carousel previous arrow"}
+            role="button"
+            className="flex items-center justify-center bg-yellow-500 rounded-full w-10 h-10 cursor-pointer hover:bg-yellow-400 absolute top-1/2 left-4 transform -translate-y-1/2 z-10 transition duration-250 ease"
         >
             <FaChevronLeft className="text-white text-lg" />
         </div>
@@ -95,9 +111,11 @@ function Gallery( {setArtistName}) {
         slidesToShow: initSettings.settings.slidesToShow,
         slidesToScroll: initSettings.settings.slidesToScroll,
         dots: initSettings.settings.dots,
+        dotsClass: "slick-dots", //default, but used in styling so make sure it's right
         nextArrow: <NextArrow />,
         prevArrow: <PrevArrow />,
-        responsive: carouselBreakpoints
+        responsive: carouselBreakpoints,
+        focusOnSelect: true
     };
     return (
         <div className="slider-container pb-5">
@@ -105,6 +123,8 @@ function Gallery( {setArtistName}) {
                 {artistData.map((artist) => (
                     <div
                         onClick={() => {setArtistName(artist.name)}}
+                        role="button"
+                        title={artist.name + " (click to search)"}
                         className="artist-carousel-card bg-white w-full max-w-sm text-black rounded-xl cursor-pointer shadow-md overflow-hidden">
                         <div className="w-full aspect-[4/5]">
                             <img

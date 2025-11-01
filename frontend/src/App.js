@@ -267,7 +267,6 @@ function App() {
             scrollWheelZoom={true} 
             style={{ height: '400px', width: '100%' }} 
             worldCopyJump={false} 
-            maxBounds={[[-90, -180], [90, 180]]} 
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -277,10 +276,13 @@ function App() {
               .filter(item => item.latitude != null && item.longitude != null) 
               .map((item) => ( // Use item.key instead of index
                 <Marker key={item.key} position={[item.latitude, item.longitude]}>
-                  <Popup>
-                    <b>{item.cardTitle || 'Event'}</b><br />
-                    {item.title || 'Date Missing'} <br /> 
-                    {item.cardDetailedText.split('\n')[0]} 
+                  <Popup maxHeight={250}>
+                    <p className="map-popup-title">{item.cardTitle || 'Event'}</p>
+                    <p className="map-popup-date">{item.title || 'Date Missing'}</p> 
+                    <p className="map-popup-description">
+                      {item.cardDetailedText.split(/\n|(?:<p>)/)[0]} 
+                      {item.source_url && (<a href = {item.source_url} className="map-popup-source">(Source)</a>)}
+                    </p>
                   </Popup>
                 </Marker>
               ))}
