@@ -32,7 +32,7 @@ public class AppController {
         return ResponseEntity.ok("Java backend is running");
     }
 
-    @GetMapping("/agent")
+    @GetMapping(value = "/agent", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter searchWithAgents(
         @RequestParam String artistName,
             @RequestParam String context,
@@ -86,6 +86,7 @@ public class AppController {
                                 if (!jsonData.isEmpty() && jsonData.startsWith("{")) {
                                     System.out.println("Sending to emitter: " + jsonData);
                                     emitter.send(SseEmitter.event().data(jsonData));
+                                    emitter.send(SseEmitter.event().comment("flush"));
                                 }
                             } catch (IOException e) {
                                 System.err.println("Error sending to emitter: " + e.getMessage());

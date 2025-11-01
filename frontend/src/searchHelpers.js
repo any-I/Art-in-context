@@ -63,7 +63,8 @@ export const performSearch = async (  searchParams,
                                       setTimelineData,
                                       setNetworkData,
                                       setError,
-                                      setActiveTimelineScope
+                                      setActiveTimelineScope,
+                                      setStatusMessage
                                   ) => {
     setIsLoading(true);
     setLoadingTime(0);
@@ -103,53 +104,66 @@ export const performSearch = async (  searchParams,
             searchUrl += "&artworkTitle=" + searchParams.artworkTitle;
         }
 
-        // Fetch response from backend
-        const response = await fetch(searchUrl);
-        if (!response.ok) throw new Error("Error performing AI search");
-        const data = await response.json();
+        // Use event source to accept backend streaming: if the status is "processing", stream it
+        // else if the status is "complete", set the response to be the data we want to return
+        const eventSource = new EventSource(searchUrl);
 
-        // Handle error on backend
-        if (data.error) {
-            throw new Error(data.error);
+        eventSource.onmessage = (event) => {
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch {
+        console.warn("Non-JSON SSE message:", event.data);
+        return;
+      }
+
+      console.log("Stream data:", data);
+
+      if (data.status && data.status !== "complete") {
+        setStatusMessage(`${data.message || ""}`);
+        return;
+      }
+
+      if (data.status === "complete") {
+        eventSource.close();
+        clearInterval(timerRef.current);
+        timerRef.current = null;
+
+        const dataKey = scopeInfo[scope];
+        const resultData = data.data || data; // handle either structure
+        if (dataKey && resultData[dataKey]) {
+          if (dataKey === "timelineEvents") {
+            const transformedData = getTransformedTimelineEvents(resultData);
+            setTimelineData(transformedData);
+            setNetworkData([]);
+            setActiveTimelineScope(scope);
+          } else {
+            setNetworkData(resultData.networkData || []);
+            setTimelineData([]);
+          }
+        } else {
+          setError("No valid data found for the selected scope.");
         }
 
-        // Parse network/timeline data from response depending on scope
-        else if (scope in scopeInfo && scopeInfo[scope] in data){
-            const dataKey = scopeInfo[scope];
-            console.log(`Received ${dataKey} for scope: ${scope}`, data[dataKey]);
-
-            //handling timeline events data
-            if(dataKey === "timelineEvents"){
-                const transformedData = getTransformedTimelineEvents(data);
-                console.log("Transformed data: ", transformedData);
-                setTimelineData(transformedData);
-                setNetworkData([]);
-                setActiveTimelineScope(scope);
-            }
-
-            //handling network data
-            else {
-                setNetworkData(data.networkData);
-                setTimelineData([]);
-            }
-        }
-
-        // Handle cases where data is missing for the expected scope
-        else {
-            console.warn(`Data key ('${scopeInfo[scope]}') not found in response for scope '${scope}'.`);
-            throw new Error("Received response, but no valid data found for the selected scope.");
-        }
-    } catch (err) {
-        // Handle all error states - print error message and clear data arrays
-        setError(err.message || "Failed to perform AI search");
-        setTimelineData([]);
-        setNetworkData([]);
-    }
-    finally {
+        setStatusMessage("");
         setIsLoading(false);
-        if (timerRef.current) {
-            clearInterval(timerRef.current);
-            timerRef.current = null;
-        }
-    }
-}
+      }
+    };
+
+    eventSource.onerror = () => {
+      setError("Stream connection failed");
+      setIsLoading(false);
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+      eventSource.close();
+    };
+
+  } catch (err) {
+    // ---- ERROR HANDLING ----
+    console.error("performSearch error:", err);
+    setError(err.message || "Failed to perform AI search");
+    setTimelineData([]);
+    setNetworkData([]);
+    setIsLoading(false);
+  }
+};
