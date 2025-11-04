@@ -1,6 +1,9 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
+
 from dotenv import load_dotenv
 import os
+import json
 import openai
 from pydantic import BaseModel
 from typing import Optional
@@ -281,11 +284,25 @@ def find_artworks_for_events(event_list: list[dict[str, any]], artist_name: str)
 def root():
     return {"status": "ok", "service": "llm_service"}
 
+
+# Create a wrapper for the streaming so we return a StreamingResponse
 @app.post("/agent")
-def run_agents(request: AgentsRequest):
+async def run_agents(request: AgentsRequest):
+    return StreamingResponse(
+        run_agents_stream(request),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"  # Disable proxy buffering
+        }
+    )
+
+async def run_agents_stream(request: AgentsRequest):
+
     # Ensure context is a list and not empty before accessing
     if not request.context or not isinstance(request.context, list):
-        raise HTTPException(status_code=400, detail="Invalid context provided. Expected a non-empty list.")
+        yield f"data: {json.dumps({'status': 'error', 'message': 'Invalid context provided. Expected a non-empty list.'})}\n\n"
     
     # Construct query string, which is of the form <Artist Name: [artwork title] [scope]>
     # or, if no artwork title is provided, <Artist Name: [scope]>
@@ -298,25 +315,32 @@ def run_agents(request: AgentsRequest):
     print(f"Running agents for scope: {scope}")
     print(f"Query string: {query_string}")
 
+    yield f"data: {json.dumps({'status': 'processing', 'message': f'Starting analysis for {request.artistName}'})}\n\n"
+
     try:
         # query the agents for a result list + the type which it should be parsed as
         # we use artwork-title-specific prompts if the request provides the artwork title, and otherwise
         # use a more general prompt only taking into consideration the artist name
+        yield f"data: {json.dumps({'status': 'processing', 'message': f'Querying agents for {scope}...'})}\n\n"
         prompt_files_key = "artwork_prompt_files" if request.artworkTitle else "prompt_files"
         result_str, parse_type = query_agents(scope, query_string, prompt_files_key)
 
         # parse the result string, and if it contains events, search for artworks within it
+        yield f"data: {json.dumps({'status': 'processing', 'message': f'Parsing results for {scope}...'})}\n\n"
         result_list = parse_into_list(result_str, parse_type)
         if(parse_type == "event"):
+            yield f"data: {json.dumps({'status': 'processing', 'message': 'Finding artworks for detected events...'})}\n\n"
             find_artworks_for_events(result_list, request.artistName)
         
         # return a dictionary with a key depending on the type of data being returned
         response_key = output_types[parse_type]["return_key"]
-        return { response_key: result_list }
+        payload = {response_key: result_list}
+        yield f"data: {json.dumps({'status': 'complete', 'message': f'Analysis complete for {scope}', 'data': payload})}\n\n"
 
     except HTTPException as http_err:
         # Re-raise HTTP exceptions to be handled by FastAPI
-        raise http_err 
+        yield f"data: {json.dumps({'status': 'error', 'message': f'HTTP error during agent execution: {http_err.detail}'})}\n\n"
+
     except Exception as e:
         print(f"Error during agent execution: {e}")
         # return error structure, ensuring keys match potential frontend expectation even on error
@@ -325,4 +349,5 @@ def run_agents(request: AgentsRequest):
             error_resp["networkData"] = []
         else: # Default or political-events
             error_resp["timelineEvents"] = []
-        return error_resp
+        yield f"data: {json.dumps({'status': 'error', 'message': str(e), 'data': error_resp})}\n\n"
+

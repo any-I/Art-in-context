@@ -112,6 +112,8 @@ function App() {
   const timerRef = useRef(null); // Ref to store timer interval ID
   const [artworkTitleOn, setArtworkTitleOn] = useState(false); // State for artwork search activated
   const [artworkTitle, setArtworkTitle] = useState(""); // State for artwork search input
+  const [statusMessage, setStatusMessage] = useState("");
+
  
   // Cleanup timer on component unmount
   useEffect(() => {
@@ -212,17 +214,26 @@ function App() {
             setTimelineData,
             setNetworkData,
             setError,
-            setActiveTimelineScope
+            setActiveTimelineScope,
+            setStatusMessage
           );
         }}>
           Search</button>
       </div>
 
       {/* Loading Indicator */}
-      {isLoading && (
-          <div className = "result-container" style={{textAlign: 'center'}}>
-            Loading... ({loadingTime}s elapsed)
-          </div>
+      {(isLoading || statusMessage) && (
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: "10px",
+            color: "#555"
+          }}
+        >
+          {statusMessage
+            ? `${statusMessage}${isLoading ? ` (${loadingTime}s)` : ""}`
+            : ""}
+        </div>
       )}
 
       {error && <div className="error-message result-container"><p>Error: {error}</p></div>}
