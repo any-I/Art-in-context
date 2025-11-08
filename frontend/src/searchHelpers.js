@@ -37,7 +37,8 @@ const getTransformedTimelineEvents = (data) => {
         title: event.date,
         cardTitle: event.event_title,
         location_name: event.location_name, // Include location_name
-        cardDetailedText: event.detailed_summary + (event.source_url ? `\n\n[Source](${event.source_url})` : ""),
+        cardDetailedText: event.detailed_summary + (
+            event.source_url ? `<p>Source: <a href ='${event.source_url}'>${event.source_url}</a></p>` : ""),
 
         // images to show up in timeline where needed
         media: event.artwork_image_url ? {
@@ -47,7 +48,8 @@ const getTransformedTimelineEvents = (data) => {
             }
         } : undefined,
         latitude: event.latitude,
-        longitude: event.longitude
+        longitude: event.longitude,
+        source_url: event.source_url
     }));
 
     // Sort chronologically based on the earliest year found in the date

@@ -131,22 +131,24 @@ function App() {
 
   return (
     <div className="app-container">
-      <h1 className="bold text-4xl" style={{ textAlign: 'center'}}>Art in Context</h1>
+      <h1 id = "app-title">Art in Context</h1>
 
       <Gallery setArtistName={setArtistName}></Gallery>
       <div className="search-form">
         <div className="form-group">
-          <label className="label-item">Artist Name</label>
+          <label className="label-item" htmlFor="artist-name">Artist Name</label>
           <input
               type="text"
               value={artistName}
               onChange={(e) => setArtistName(e.target.value)}
               placeholder="e.g. Vincent van Gogh"
+              id="artist-name"
+              className="form-control"
           />
         </div>
 
         <button
-            className="bg-transparent hover:bg-gray-100 transition-colors text-black border border-gray-700 rounded"
+            className="form-control bg-transparent hover:bg-gray-100 transition-colors"
             onClick={() => {
               const newHasArtworkTitle = !artworkTitleOn;
               setArtworkTitleOn(newHasArtworkTitle); 
@@ -158,31 +160,35 @@ function App() {
               setScope(firstScope.next().value);
             }}>
           {artworkTitleOn ? (
-              <>
-              <span className="text-red-500">✖</span> Remove Artwork Title
-          </>
+              <span className="has-span-icon">
+                <span className="span-icon text-red-500">✖</span> Remove Artwork Title
+              </span>
             ) : (
-              <>
-                  <span className="text-green-500 font-extrabold text-xl">+</span> Add Artwork Title (optional)
-              </>
+              <span className="has-span-icon">
+                  <span className="span-icon text-green-500 font-extrabold text-xl">+</span> Add Artwork Title (optional)
+              </span>
           )}
         </button>
 
         {artworkTitleOn && (
             <div className="form-group">
-              <label>Artwork Title</label>
+              <label className="label-item" htmlFor="artwork-title">Artwork Title</label>
               <input
                   type="text"
                   value={artworkTitle}
                   onChange={(e) => setArtworkTitle(e.target.value)}
                   placeholder="e.g. Mona Lisa"
+                  id="artwork-title"
+                  className="form-control"
               />
             </div>
         )}
 
         <div className="form-group">
-          <label className="label-item">Search Scope</label>
+          <label className="label-item" htmlFor="scope-select">Search Scope</label>
           <select
+              id = "scope-select"
+              className="form-control"
               value={scope}
               onChange={(e) => setScope(e.target.value)}
           >
@@ -190,7 +196,8 @@ function App() {
           </select>
         </div>
 
-        <button className="search-button"
+        <button id="search-button"
+            className="form-control"
             onClick={() => {
           let searchParams = {
             "scope": scope,
@@ -229,25 +236,28 @@ function App() {
         </div>
       )}
 
-      {error && <div className="error-message">Error: {error}</div>}
+      {error && <div className="error-message result-container"><p>Error: {error}</p></div>}
 
-      {/* timeline stuff */}
-      {timelineData.length > 0 && (
-        <div style={{ width: '100%', height: '90vh', padding: '10px', overflowY: 'auto' }}> 
+      {/* timeline and map result*/}
+      {timelineData.length > 0 && (<>
+        <div className = "result-container"> 
           <h2 style={{ textAlign: 'center' }}>{getListTitle(activeTimelineScope)}</h2>
-          <div style={{ width: '100%', height: 'calc(100% - 40px)' }}> 
+          <div id = "timeline-container"> 
             <Chrono
               items={timelineData.map(item => ({ ...item, title: item.title || 'Date Missing' }))}
               mode="HORIZONTAL"
               scrollable={{ scrollbar: true }}
               enableOutline
               theme={{
-                primary: 'rgb(33, 150, 243)',
+                primary: 'var(--main-col)',
                 secondary: 'white',
-                cardBgColor: 'rgb(240, 240, 240)',
-                cardForeColor: '#333',
-                titleColor: 'black',
-                titleColorActive: 'rgb(33, 150, 243)',
+                toolbarBgColor: 'transparent', 
+                buttonHoverBgColor: 'var(--accent-col)',
+                cardBgColor: 'white', //card styling
+                cardTitleColor: 'var(--main-col)',
+                cardDetailsColor: 'var(--dark-text-col)',
+                titleColor: 'var(--dark-text-col)', //timeline styling
+                titleColorActive: 'var(--main-col)'
               }}
               fontSizes={{
                 cardText: '0.9rem',
@@ -255,12 +265,11 @@ function App() {
                 title: '1rem',
               }}
               useReadMore={false}
+              parseDetailsAsHTML={true}
             />
           </div>
         </div>
-      )}
-
-      {timelineData.length > 0 && (
+        
         <div> 
           <h2 style={{ textAlign: 'center' }}>Map</h2>
           <MapContainer 
@@ -269,7 +278,6 @@ function App() {
             scrollWheelZoom={true} 
             style={{ height: '400px', width: '100%' }} 
             worldCopyJump={false} 
-            maxBounds={[[-90, -180], [90, 180]]} 
           >
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -279,20 +287,23 @@ function App() {
               .filter(item => item.latitude != null && item.longitude != null) 
               .map((item) => ( // Use item.key instead of index
                 <Marker key={item.key} position={[item.latitude, item.longitude]}>
-                  <Popup>
-                    <b>{item.cardTitle || 'Event'}</b><br />
-                    {item.title || 'Date Missing'} <br /> 
-                    {item.cardDetailedText.split('\n')[0]} 
+                  <Popup maxHeight={250}>
+                    <p className="map-popup-title">{item.cardTitle || 'Event'}</p>
+                    <p className="map-popup-date">{item.title || 'Date Missing'}</p> 
+                    <p className="map-popup-description">
+                      {item.cardDetailedText.split(/\n|(?:<p>)/)[0]} 
+                      {item.source_url && (<a href = {item.source_url} className="map-popup-source">(Source)</a>)}
+                    </p>
                   </Popup>
                 </Marker>
               ))}
           </MapContainer>
         </div>
-      )}
+      </>)}
 
       {/* Network visualization */}
       {networkData.length > 0 && (
-        <div style={{ width: '100%', height: '80vh' }}> 
+        <div className="result-container" style={{ width: '100%', height: '80vh' }}> 
           <h2>Artist Network</h2>
           <NetworkGraph data={networkData} artistName={artistName} />
         </div>
