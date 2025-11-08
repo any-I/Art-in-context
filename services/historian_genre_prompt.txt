@@ -14,7 +14,7 @@ Return ONLY a structured, numbered list of significant events in the history of 
 1.  **Year(s):** The specific year or range of years for the event in YYYY or YYYY-YYYY format (e.g., "1888", "1905-1907").
 2.  **Event Title:** A concise description of the event (e.g., 'Publication of Surrealist Manifesto')
 3.  **Location:** The city, region, or country where the event primarily occurred, if known (e.g. 'Paris, France)
-4.  **Description of Event:** A paragraph explaining the event and, crucially, discussing its significance to the development of the genre.
+4.  **Description of Event:** A paragraph explaining the event and, crucially, discussing its significance to the development of the genre. If there is any significant artwork related to the event, include its title and enclose it with ++ (e.g. ++The Persistence of Memory++)
 5.  **Source:** Cite the source URL where you found the information.
 
 ## Example
@@ -25,13 +25,13 @@ Output:
 1. **Year(s):** 1551
    **Event Title:** Pieter Aertsen paints “A Meat Stall with the Holy Family Giving Alms”
    **Location:** Antwerp / Low Countries
-   **Description of Event:** In 1551, Pieter Aertsen executed A Meat Stall with the Holy Family Giving Alms (also called Butcher’s Stall) which foregrounds a highly detailed still life of meats, produce, and foodstuffs, while a biblical or moral narrative is pushed into the background. This inversion (still life in front, narrative behind) is among the earliest clear instances in Northern European art where still life elements dominate the composition, asserting inanimate objects as worthy of attention in their own right. It marks a formative moment in the emergence of still life as a distinct genre.
+   **Description of Event:** In 1551, Pieter Aertsen executed ++A Meat Stall with the Holy Family Giving Alms++ (also called Butcher’s Stall) which foregrounds a highly detailed still life of meats, produce, and foodstuffs, while a biblical or moral narrative is pushed into the background. This inversion (still life in front, narrative behind) is among the earliest clear instances in Northern European art where still life elements dominate the composition, asserting inanimate objects as worthy of attention in their own right. It marks a formative moment in the emergence of still life as a distinct genre.
    **Source:** [CODART (Museum / scholarly catalog) “Meat Stall — Pieter Aertsen, 1551”](https://canon.codart.nl/artwork/butchers-stall/)
 
 2. **Year(s):** 1597-1600
    **Event Title:** Caravaggio’s “Basket of Fruit”
    **Location:** Milan, Italy
-   **Description of Event:** Caravaggio painted Basket of Fruit around 1597-1600 (Ambrosiana, Milan). This work is often cited as a proto-type early independent still life in Italian painting, separated from religious or mythological subject matter. The painting exhibits naturalism, attention to decay, texture, tactility, and light, emphasizing the visual qualities of inanimate objects themselves. It contributes to establishing still life’s legitimacy in southern Europe.
+   **Description of Event:** Caravaggio painted ++Basket of Fruit++ around 1597-1600 (Ambrosiana, Milan). This work is often cited as a proto-type early independent still life in Italian painting, separated from religious or mythological subject matter. The painting exhibits naturalism, attention to decay, texture, tactility, and light, emphasizing the visual qualities of inanimate objects themselves. It contributes to establishing still life’s legitimacy in southern Europe.
    **Source:** [Ambrosiana museum (“Basket of Fruit” entry, c. 1597-1600) Veneranda Biblioteca Ambrosiana](https://ambrosiana.it/en/opere/basket-of-fruit/)
 
 3. **Year(s):** 1603
@@ -49,13 +49,13 @@ Output:
 5. **Year(s):** 1890-1894
    **Event Title:** Paul Cézanne’s innovations in still life
    **Location:** France
-   **Description of Event:** In the period 1890-1894, Cézanne painted works such as Still Life with a Ginger Jar and Eggplants which broke away from strict representation toward playing with volume, perspective, plane, structure, and color modulation. His experimentation with form, flattening of space, and treating objects as geometric shapes helped pave the way for modernist movements (Cubism, Fauvism, etc.), positioning still life as a key site of formal innovation, not merely decorative or domestic painting.
+   **Description of Event:** In the period 1890-1894, Cézanne painted works such as ++Still Life with a Ginger Jar++ and ++Eggplants++, which broke away from strict representation toward playing with volume, perspective, plane, structure, and color modulation. His experimentation with form, flattening of space, and treating objects as geometric shapes helped pave the way for modernist movements (Cubism, Fauvism, etc.), positioning still life as a key site of formal innovation, not merely decorative or domestic painting.
    **Source:** [Objects of Desire: The Modern Still Life catalog, MoMA, 1997](https://www.moma.org/documents/moma_catalogue_249_300019097.pdf)
 
 6. **Year(s):** 1997
    **Event Title:** “Objects of Desire: The Modern Still Life” Exhibition at MoMA
    **Location:** New York City, USA (later Hayward Gallery, London)
-   **Description of Event:** The exhibition ran from May 25 – August 26, 1997 at the Museum of Modern Art, New York, and then October 9, 1997 – January 4, 1998 at the Hayward Gallery, London. Curated by Margit Rowell, Objects of Desire surveyed how 20th-century artists (European and American) engaged with, transformed, and sometimes subverted still life: from Cubism to Surrealism, Pop Art, conceptual artworks, and the use of new media. This was a major institutional recognition that still life is not just a historical genre but a living field for experimentation.
+   **Description of Event:** The exhibition ran from May 25 – August 26, 1997 at the Museum of Modern Art, New York, and then October 9, 1997 – January 4, 1998 at the Hayward Gallery, London. Curated by Margit Rowell, "Objects of Desire" surveyed how 20th-century artists (European and American) engaged with, transformed, and sometimes subverted still life: from Cubism to Surrealism, Pop Art, conceptual artworks, and the use of new media. This was a major institutional recognition that still life is not just a historical genre but a living field for experimentation.
    **Source:** [MoMA official exhibition page](https://www.moma.org/calendar/exhibitions/249)
 
 To complete the task, you MUST make a call to the final_answer tool, passing in the list of events you find.
