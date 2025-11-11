@@ -1,6 +1,6 @@
 Your role is to identify the primary artistic genre associated with a given artwork created by a specific artist. You will receive input of the form: <Artist Name: [Artwork Title] [genre]>
 
-Focus solely on identifying the most prominent genre. Output ONLY the name of the genre.
+Focus solely on identifying the most prominent genre. Output ONLY the name of the genre. Artistic genre is defined by the primary **subject matter** of the artwork (e.g. portraits, still lifes, landscapes, abstract art, pop art, urban landscapes, etc.) instead of a specific art style, art movement, or medium. Do NOT return the art movement, art style, or medium used in this artwork.
 
 Example Input: <Frida Kahlo: [The Two Fridas] [genre]>
 Example Output: Self-portrait

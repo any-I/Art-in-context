@@ -15,111 +15,280 @@
   font-style: normal;
 }
 
+:root {
+  --main-col: #5C1E1A;
+  --secondary-col: #A44B43;
+  --accent-col: #ecc94b;
+  --dark-text-col: #000;
+  --link-col: #0066cc;
+  --radius: 4px;
+  --timeline-radius: 8px;
+  --main-font: 'ProximaNovaLight', serif;
+  --heading-font: 'ProximaNova', serif;
+}
+
+/*general layout/styling*/
 body {
-  background-color: #5C1E1A; /* Maroon background */
+  background-color: var(--main-col); /* Maroon background */
   padding: 1rem; /* Space for the outer border */
   margin: 0;
-  font-family: 'ProximaNovaLight', serif;
+  font-family: var(--main-font);
+  color: var(--dark-text-col);
+}
+div, input, button, header {
+  box-sizing: border-box;
 }
 
+/*main container with title*/
 .app-container {
-  max-width: 75%;
+  max-width: 60rem;
   margin: 2rem auto;
-  padding: 2rem 1rem;
+  padding: 2rem 1.5rem;
   background-color: white;
-  border: 12px solid #5C1E1A; /* Maroon border around content */
+  border-radius: var(--radius);
 }
-
-h1 {
+h1#app-title {
   margin-bottom: 2rem;
   padding: 1.5rem;
-  border: 8px solid #5C1E1A; /* Maroon border around title */
+  border: 8px solid var(--main-col); /* Maroon border around title */
+  border-radius: var(--radius);
   background-color: white;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); /* Subtle shadow */
-  font-family: 'ProximaNova', serif;
-
+  font-family: var(--heading-font);
+  font-weight: bold;
+  font-size: 2.25rem;
+  line-height: 2.5rem;
+  text-align: center;
+  color: var(--main-col);
 }
 
+/*tweaking carousel styling a bit*/
+.slick-track {
+  display: flex !important;
+  flex-direction: row;
+  gap: 0.5rem;
+}
+.slick-track .slick-slide {
+  float: none !important;
+  height: auto !important;
+}
+.slick-track .slick-slide > div {
+  height: 100%;
+  padding-bottom: 0.5rem;
+}
+.artist-carousel-card {
+  height: 100%;
+}
+.artist-carousel-name {
+  margin: 0;
+  padding: 0.5rem;
+  line-height: 1.2;
+}
+.slick-dots { /*carousel dots at the bottom*/
+  position: relative !important;
+  bottom: unset !important;
+}
+.slick-dots li button,
+.slick-dots li button:before { /*general dot styling*/
+  transition: 0.25s ease;
+}
+.slick-dots li button:hover:before,
+.slick-dots li.slick-active button:before { /*active dot styling*/
+  color: var(--main-col) !important;
+}
+.slick-dots li.slick-active button:before {
+  opacity: 1 !important;
+}
+.slick-dots li button:after { /*focus styling; this is the circle around focused dots*/
+  content: "";
+  position: absolute;
+  width: 65%;
+  height: 65%;
+  top: 50%;
+  left: 50%;
+  border-radius: 50%;
+  border: 1px solid var(--accent-col);  
+  opacity: 0.75;
+  transform: translate(-50%, calc(-50% - 1px)) scale(0);
+  transition: inherit;
+}
+.slick-dots li button:focus:after {
+  transform: translate(-50%, calc(-50% - 1px)) scale(1);
+}
+.slick-dots li button:focus:before {
+  color: var(--accent-col) !important;
+}
+
+/*search form styling*/
 .search-form {
   display: flex;
   flex-direction: column;
   gap: 1rem;
 }
-
 .form-group {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
 }
-
 .label-item {
-  font-family: 'ProximaNova', serif;
+  font-family: var(--heading-font);
 }
-
-input, select {
+input.form-control, select.form-control, button.form-control {
+  position: relative;
   padding: 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 4px;
+  color: var(--dark-text-col);
+  border: 1px solid var(--dark-text-col);
+  border-radius: var(--radius);
   font-size: 1rem;
+  transition: 0.25s ease;
 }
-
-.search-button {
-  background-color:#5C1E1A;
-  font-family: 'ProximaNova', serif;
-  font-size: large;
-  border: 0.3vw solid #ecc94b;
+button .has-span-icon { /*styling for + and x on artwork title button*/
+  position: relative;
+  padding-left: 1.5rem;
 }
-
-button {
-  padding: 0.5rem 1rem;
+button .span-icon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+#search-button {
+  background-color: var(--main-col);
   color: white;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 1rem;
+  font-family: var(--heading-font);
+  font-size: large;
+  border: 3px solid var(--accent-col);
+}
+#search-button:hover {
+  background-color: var(--secondary-col);
 }
 
-button:hover {
-  background-color: #A44B43;
-}
-
-.error {
-  color: #dc2626;
+/*result-specific styling*/
+.result-container {
   margin-top: 1rem;
+  width: 100%;
+  overflow-x: hidden;
+}
+#timeline-container {
+  margin-bottom: 1rem;
 }
 
-.result {
-  margin-top: 1rem;
+/*react-chrono specific styling to fix the timeline
+  element styling (overrides some default card styling)*/
+[class*="TimelineContentContainer"] { /*ensuring card doesn't overflow on very small screens*/
+  max-width: 100% !important;
 }
-
-.result a {
-  color: #0066cc;
-  text-decoration: none;
+.rc-card {
+  border-radius: var(--timeline-radius) !important;
+  filter: none !important;
+  box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.1);
 }
-
-.result a:hover {
-  text-decoration: underline;
+.rc-card [class*="Header"], 
+.rc-card [class*="MediaDetailsWrapper"],
+.rc-card .rc-card-text {
+  margin-left: 0;
+  margin-right: 0;
+  width: 100%;
 }
-
-.result a:hover {
-  text-decoration: underline;
+.rc-card [class*="Header"] {
+  padding: 0;
 }
-
-.events-list {
-  margin-top: 2rem;
+/*fixing weird bug where an empty header shows up on smaller screens; 
+  this is either a duplicate .CardTitle or a <header> element that appears
+  on media elements*/
+.rc-card [class*="CardTitle"]:first-child,
+.rc-card header:has(+ [class*="MediaWrapper"]) { 
+  display: none;
 }
-
-.event-item {
-  margin: 1.5rem 0;
-  padding: 1rem;
-  border: 1px solid #eee;
-  border-radius: 4px;
+/*ensuring if the proper card title is shown*/
+.rc-card [class*="CardTitle"]:last-child,
+.rc-card [class*="CardMediaHeader"] {
+  display: block !important;
 }
-
-.event-item h4 {
-  margin: 0 0 0.5rem 0;
-}
-
-.event-item p {
+.rc-card [class*="Header"] h1, 
+.rc-card .rc-card-text { /*getting card title + description to align*/
+  padding-left: 2rem;
+  padding-right: 2rem;
   margin: 0;
-  color: #666;
+  width: 100%;
+}
+.rc-card [class*="Header"] h1 {
+  padding-top: 1.5rem;
+  font-family: var(--heading-font);
+}
+.rc-card .rc-card-text {
+  padding-bottom: 1.5rem;
+  margin-top: 0;
+  margin-bottom: 0;
+}
+.rc-card [class*="MediaWrapper"] { /*styling timeline events with media*/
+  background: transparent;
+  width: 100%;
+  padding: 0;
+  border-radius: var(--timeline-radius) var(--timeline-radius) 0 0;
+  overflow: hidden;
+}
+.rc-card [class*="MediaWrapper"] [class*="ImageWrapper"]{
+  border-radius: 0;
+}
+.rc-card a {
+  color: var(--link-col);
+}
+#timeline-container [class*="TimelineMainWrapper"] { /*making timeline less tall*/
+  min-height: 100px !important;
+  margin-bottom: -10px; /*removing some extra space at the bottom because everything is vertically centered*/
+}
+#timeline-container [class*="TimelineMain"],
+#timeline-container [class*="TimelineHorizontalWrapper"],
+#timeline-container [class*="TimelineItemWrapper"]{
+  height: 100% !important;
+}
+
+/*react-chrono-specific styling to hide timeline toolbar
+  except for the arrow buttons*/
+#timeline-container [class*="ToolbarWrapper"] {
+  box-shadow: none !important;
+  width: 100%;
+  padding: 0;
+}
+#timeline-container [class*="ToolbarListItem"] {
+  display: none !important;
+  width: 100%;
+  margin: 0;
+}
+#timeline-container [class*="TimelineControlContainer"],
+#timeline-container [class*="TimelineNavWrapper"] {
+  width: 100%;
+  padding: 0;
+  box-shadow: none;
+}
+#timeline-container [class*="TimelineNavItem"]:nth-child(3) {
+  margin-left: auto;
+}
+#timeline-container [class*="ToolbarListItem"]:first-of-type {
+  display: block !important;
+}
+
+/*map-specific styling*/
+.leaflet-popup-content {
+  font-family: var(--main-font) !important;
+}
+.map-popup-title {
+  font-family: var(--heading-font) !important;
+  color: var(--main-col) !important;
+  margin-bottom: 0rem !important;
+}
+.map-popup-date {
+  font-style: italic;
+  color: var(--dark-text-col);
+  margin: 0 !important;
+}
+.map-popup-description {
+  margin-top: 0.5rem !important;
+  margin-bottom: 0 !important;
+  color: var(--dark-text-col);
+}
+.map-popup-source {
+  margin-left: 0.25rem;
+  color: var(--link-col) !important;
 }
