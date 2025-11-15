@@ -19,6 +19,7 @@ public class CorsConfig {
         config.setAllowCredentials(true); // allow cookies
         config.setAllowedOrigins(List.of(
             "https://art-in-context.vercel.app",
+            "https://art-in-context-livid.vercel.app",
             "http://localhost:3000"
         )); // frontend domain and localhost
         config.setAllowedHeaders(List.of("*"));
