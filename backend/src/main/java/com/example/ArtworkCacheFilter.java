@@ -71,9 +71,10 @@ public class ArtworkCacheFilter extends OncePerRequestFilter {
     }
     private static String keyFor(HttpServletRequest req) {
         if (isArtworkRequest(req)) {
-            String name  = req.getParameter("name");
-            String scope = Optional.ofNullable(req.getParameter("scope")).orElse("political-events");
-            return "artist-http-cache:v1:/api/artwork:" + scope + ":" + slug(name);
+            String artist  = req.getParameter("artistName");
+            String scope = Optional.ofNullable(req.getParameter("context")).orElse("political-events");
+            String title = req.getParameter("artworkTitle");
+            return "artist-http-cache:v1:/api/artwork:" + slug(artist) + ":" + scope + ":" + slug(title);
         } else { // /api/agent
             String artist  = req.getParameter("artistName");
             String context = stableContext(req.getParameter("context"));
@@ -105,6 +106,7 @@ public class ArtworkCacheFilter extends OncePerRequestFilter {
         }
 
         final String key  = keyFor(request);
+        System.out.println("Filter: Searching for key " + key);
 
         var rowOpt = httpCache.get(key);
         if (rowOpt.isPresent()) {
