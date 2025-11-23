@@ -38,6 +38,9 @@ body {
 div, input, button, header {
   box-sizing: border-box;
 }
+.bold-text {
+  font-family: var(--heading-font);
+}
 
 /*main container with title*/
 .app-container {
@@ -125,7 +128,7 @@ h1#app-title {
   flex-direction: column;
   gap: 1rem;
 }
-.form-group {
+.form-group, .combobox-label-cont {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -161,6 +164,58 @@ button .span-icon {
 }
 #search-button:hover {
   background-color: var(--secondary-col);
+}
+
+/*styling autocomplete input (combobox)*/
+.combobox-cont {
+  position: relative;
+}
+.combobox-input-cont { 
+  width: 100%;
+  position: relative;
+}
+.combobox-arrow {
+  position: absolute;
+  right: 0.5rem;
+  top: 50%;
+  text-align: center;
+  transform: translate(-50%, -50%);
+}
+.combobox-input {
+  width: 100%;
+}
+.combobox-dropdown {
+  position: absolute;
+  bottom: 0;
+  transform: translateY(100%);
+  background: white;
+  max-height: 10rem;
+  overflow-y: auto;
+  width: 100%;
+  z-index: 9999;
+  box-shadow: 0 0.25rem 1rem rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius);
+}
+.combobox-dropdown .combobox-li {
+  padding: 0.25rem 0.5rem;
+}
+.combobox-dropdown .combobox-li:first-child {
+  padding-top: 0.5rem;
+  border-top-left-radius: var(--radius);
+  border-top-right-radius: var(--radius);
+}
+.combobox-dropdown .combobox-li:last-child {
+  padding-bottom: 0.5rem;
+  border-bottom-right-radius: var(--radius);
+  border-bottom-left-radius: var(--radius);
+}
+.combobox-dropdown .combobox-li.highlighted {
+  background: color-mix(in srgb, var(--accent-col) 25%, transparent);
+  cursor: pointer;
+}
+.combobox-dropdown .combobox-li.selected {
+  background: var(--accent-col);
+  color: white;
 }
 
 /*result-specific styling*/

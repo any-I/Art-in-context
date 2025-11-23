@@ -1,5 +1,5 @@
 
-function shuffleArtists(artists) {
+export function shuffleArtists(artists) {
     const shuffled = [...artists];
     for (let i = shuffled.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
@@ -9,7 +9,7 @@ function shuffleArtists(artists) {
 }
 
 
-const artistData = [
+export const artistData = [
     { name: 'Maqbool Fida Husain', img: '../images/MagboolHusain.jpg' },
     { name: 'Lucian Freud', img: '../images/LucianFreud.jpg' },
     { name: 'Yang Fudong', img: '../images/YangFudong.jpg' },
@@ -93,6 +93,8 @@ const artistData = [
     { name: 'Yoshitomo Nara', img: '../images/YoshitomoNara.jpg' },
     { name: 'Imran Qureshi', img: '../images/ImranQureshi.jpg' },
     { name: 'Mona Hatoum', img: '../images/MonaHatoum.jpg' }
-];
+].sort((artist1, artist2) => {
+    return artist1.name.localeCompare(artist2.name);
+});
 
 export default shuffleArtists(artistData);

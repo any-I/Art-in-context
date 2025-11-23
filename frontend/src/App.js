@@ -12,6 +12,8 @@ import "slick-carousel/slick/slick-theme.css";
 import {performSearch} from './searchHelpers';
 import {geocodeLocations} from './geocodeHelper';
 import Gallery from './Gallery';
+import AutocompleteInput from "./AutocompleteInput";
+import {artistData} from "./artistList";
 
 // Fix for default marker icon issue with Webpack
 import L from 'leaflet';
@@ -136,15 +138,15 @@ function App() {
       <Gallery setArtistName={setArtistName}></Gallery>
       <div className="search-form">
         <div className="form-group">
-          <label className="label-item" htmlFor="artist-name">Artist Name</label>
-          <input
-              type="text"
-              value={artistName}
-              onChange={(e) => setArtistName(e.target.value)}
+          {
+            <AutocompleteInput options = {artistData}
+              itemKey="name"
+              label="Artist Name"
               placeholder="e.g. Vincent van Gogh"
-              id="artist-name"
-              className="form-control"
-          />
+              selectedValue={artistName}
+              setSelectedValue={setArtistName}
+            />
+          }
         </div>
 
         <button
@@ -206,6 +208,7 @@ function App() {
           if (artworkTitleOn && artworkTitle !== "" && artworkTitle.toLowerCase() !== "untitled") {
             searchParams["artworkTitle"] = artworkTitle;
           } 
+          
           performSearch(
             searchParams,
             setIsLoading,
