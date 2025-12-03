@@ -15,7 +15,7 @@ Return ONLY a structured, numbered list of significant events in the history of 
 1.  **Year(s):** The specific year or range of years for the event in YYYY or YYYY-YYYY format (e.g., "1888", "1905-1907").
 2.  **Event Title:** A concise description of the event (e.g., 'Publication of Surrealist Manifesto')
 3.  **Location:** The city, region, or country where the event primarily occurred, if known (e.g. 'Paris, France)
-4.  **Description of Event:** A paragraph explaining the event and, crucially, discussing its significance to the development of the art movement.
+4.  **Description of Event:** A paragraph explaining the event and, crucially, discussing its significance to the development of the art movement. If there were any significant artworks directly related to or inspired by the event, discuss them here and enclose their titles with ++ (e.g. ++The Persistence of Memory++).
 5.  **Source:** Cite the source URL where you found the information.
 
 ## Example
