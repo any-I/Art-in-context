@@ -28,6 +28,7 @@ const AutocompleteInput = ({
   setSelectedValue
 }) => {
   const [listItems, setListItems] = React.useState(options);
+  const [value, setValue] = React.useState("");
   const {
     isOpen,
     getToggleButtonProps,
@@ -38,26 +39,46 @@ const AutocompleteInput = ({
     getItemProps,
     selectedItem
   } = useCombobox({
+    inputValue: selectedValue,
     items: listItems,
     onSelectedItemChange: (changes) => {
-      setSelectedValue(changes.selectedItem[itemKey]);
-    },
-    onInputValueChange: (changes) => {
-      const inputValue = changes.inputValue;
-      //main filtering function - as long as the option includes
-      //the input value, include
-      const newListItems = options.filter((option) => {
-        const optValue = option[itemKey].toLowerCase();
-        return optValue.includes(inputValue.toLowerCase());
-      });
-      setListItems(newListItems);
-      //remember to update input value to the newly-typed one
-      setSelectedValue(inputValue);
+      const newValue = changes.selectedItem[itemKey];
+      setSelectedValue(newValue);
+      setValue(newValue);
     },
     itemToString: (item) => {
       return (item && itemKey in item) ? item[itemKey]:"";
     }
   });
+
+  //filter list to only those that contains the input value
+  const filterItems = (value) => {
+    const newListItems = options.filter((option) => {
+      const optValue = option[itemKey].toLowerCase();
+      return optValue.includes(value.toLowerCase());
+    });
+    setListItems(newListItems);
+  }
+
+  //main function handling an input change
+  const onInputChange = (e) => {
+    const inputValue = e.target.value;
+    //update dropdown
+    filterItems(inputValue);
+    //remember to update input value to the newly-typed one
+    if(selectedValue !== inputValue){
+      setSelectedValue(inputValue);
+    }
+    setValue(inputValue);
+  };
+  
+  //if selected value has changed, set value to selected value
+  //necessary to update value if carousel has set the selected value to 
+  //something else
+  if(value !== selectedValue){
+    setValue(selectedValue);
+    filterItems(selectedValue);
+  }
 
   return (
     <div className="combobox-cont">
@@ -69,7 +90,9 @@ const AutocompleteInput = ({
         <div className="combobox-input-cont">
           <input placeholder={placeholder}
               className="combobox-input form-control"
-              {...getInputProps()}/>
+              {...getInputProps({
+                onChange: onInputChange
+              })}/>
           <button aria-label="toggle menu"
                   className={"combobox-arrow" + (isOpen ? " open":" closed")}
                   {...getToggleButtonProps()}>
